@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Corrison Store{% endblock %}</title>
+    {% load static %}
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{% url 'theme:theme_css' %}">
+    <link rel="stylesheet" href="{% static 'css/output.css' %}">
+     <!-- Flowbite JS -->
+    <script src="{% static 'js/flowbite.min.js' %}"></script>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="flex flex-col min-h-screen bg-white text-gray-800 font-sans">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between py-4">
+                <!-- Logo -->
+                <a href="{% url 'core:index' %}" class="text-2xl font-bold text-blue-600">Corrison</a>
+                
+                <!-- Search -->
+                <div class="hidden md:block flex-grow max-w-md mx-6">
+                    <form action="{% url 'products:search' %}" method="GET" class="relative">
+                        <input type="text" name="q" placeholder="Search products..." class="w-full py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" class="absolute right-2 top-2 text-gray-500">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="flex items-center space-x-6">
+                    <a href="{% url 'products:catalog' %}" class="hidden md:inline-block hover:text-blue-600">Shop</a>
+                    <a href="{% url 'core:about' %}" class="hidden md:inline-block hover:text-blue-600">About</a>
+                    <a href="{% url 'core:contact' %}" class="hidden md:inline-block hover:text-blue-600">Contact</a>
+                    
+                    <!-- User Account -->
+                    <div class="relative group">
+                        <button class="flex items-center hover:text-blue-600">
+                            <i class="fas fa-user mr-1"></i>
+                            <span class="hidden md:inline">Account</span>
+                        </button>
+                        <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:profile' %}" class="block px-4 py-2 hover:bg-gray-100">My Profile</a>
+                                <a href="{% url 'accounts:order_history' %}" class="block px-4 py-2 hover:bg-gray-100">Order History</a>
+                                <a href="{% url 'accounts:wishlist' %}" class="block px-4 py-2 hover:bg-gray-100">Wishlist</a>
+                                <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 hover:bg-gray-100">Logout</a>
+                            {% else %}
+                                <a href="{% url 'accounts:login' %}" class="block px-4 py-2 hover:bg-gray-100">Login</a>
+                                <a href="{% url 'accounts:register' %}" class="block px-4 py-2 hover:bg-gray-100">Register</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Cart -->
+                    <a href="{% url 'cart:cart' %}" class="flex items-center hover:text-blue-600">
+                        <i class="fas fa-shopping-cart mr-1"></i>
+                        <span class="hidden md:inline">Cart</span>
+                        <span class="ml-1 bg-blue-600 text-white text-xs rounded-full px-2 py-1">0</span>
+                    </a>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button class="md:hidden" id="mobile-menu-button">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </nav>
+            </div>
+            
+            <!-- Mobile Search (visible on small screens) -->
+            <div class="md:hidden pb-4">
+                <form action="{% url 'products:search' %}" method="GET" class="relative">
+                    <input type="text" name="q" placeholder="Search products..." class="w-full py-2 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="absolute right-2 top-2 text-gray-500">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu (hidden by default) -->
+        <div class="md:hidden hidden bg-gray-50" id="mobile-menu">
+            <div class="container mx-auto px-4 py-3">
+                <nav class="flex flex-col space-y-3">
+                    <a href="{% url 'products:catalog' %}" class="py-2 hover:text-blue-600">Shop</a>
+                    <a href="{% url 'core:about' %}" class="py-2 hover:text-blue-600">About</a>
+                    <a href="{% url 'core:contact' %}" class="py-2 hover:text-blue-600">Contact</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+        <!-- Messages -->
+        {% if messages %}
+            <div class="container mx-auto px-4 py-4">
+                {% for message in messages %}
+                    <div class="{% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %} px-4 py-3 rounded relative mb-4" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                        <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none'">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white pt-12 pb-6">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Corrison Store</h3>
+                    <p class="mb-4">Your one-stop shop for quality products at affordable prices.</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-white hover:text-blue-400"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-white hover:text-blue-400"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-white hover:text-blue-400"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-white hover:text-blue-400"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Shop</h3>
+                    <ul class="space-y-2">
+                        <li><a href="{% url 'products:catalog' %}" class="hover:text-blue-400">All Products</a></li>
+                        <li><a href="#" class="hover:text-blue-400">New Arrivals</a></li>
+                        <li><a href="#" class="hover:text-blue-400">Best Sellers</a></li>
+                        <li><a href="#" class="hover:text-blue-400">Sale Items</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Customer Service</h3>
+                    <ul class="space-y-2">
+                        <li><a href="{% url 'core:contact' %}" class="hover:text-blue-400">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-blue-400">FAQs</a></li>
+                        <li><a href="#" class="hover:text-blue-400">Shipping & Returns</a></li>
+                        <li><a href="#" class="hover:text-blue-400">Order Tracking</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Information</h3>
+                    <ul class="space-y-2">
+                        <li><a href="{% url 'core:about' %}" class="hover:text-blue-400">About Us</a></li>
+                        <li><a href="{% url 'core:privacy_policy' %}" class="hover:text-blue-400">Privacy Policy</a></li>
+                        <li><a href="{% url 'core:terms_conditions' %}" class="hover:text-blue-400">Terms & Conditions</a></li>
+                        <li><a href="#" class="hover:text-blue-400">Blog</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-700 pt-6">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <p>&copy; {% now "Y" %} Corrison Store. All rights reserved.</p>
+                    <div class="mt-4 md:mt-0">
+                        <img src="{% static 'images/payment-methods.png' %}" alt="Payment Methods" class="h-8" onerror="this.src='https://via.placeholder.com/240x32?text=Payment+Methods'">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

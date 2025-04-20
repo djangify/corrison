@@ -38,7 +38,7 @@ def index(request):
         'blog_posts': blog_posts,
     }
     
-    return render(request, 'core/index.html', context)
+    return render(request, 'index.html', context)
 
 
 def about(request):
