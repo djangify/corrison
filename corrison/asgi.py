@@ -11,6 +11,7 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'corrison.settings')
+# Set the default settings module for production
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'corrison.settings.production')
 
 application = get_asgi_application()

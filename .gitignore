@@ -106,3 +106,4 @@ staticfiles/
 .htaccess
 *.log
 passenger_wsgi.py
+.env.production
