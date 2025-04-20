@@ -55,7 +55,7 @@
                     {% for subcategory in category.children.all %}
                         {% if subcategory.is_active %}
                             <a href="{% url 'products:category_detail' subcategory.slug %}" 
-                               class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition duration-300 flex items-center">
+                               class="bg-white p-4 rounded-lg shadow-sm hover:shadow-sm transition duration-300 flex items-center">
                                 {% if subcategory.image %}
                                     <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" class="w-10 h-10 object-cover rounded-full mr-3">
                                 {% else %}

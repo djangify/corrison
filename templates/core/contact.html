@@ -24,7 +24,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Contact Form -->
-        <div class="bg-white rounded-lg shadow-md p-8">
+        <div class="bg-white rounded-lg shadow-sm p-8">
             <h1 class="text-3xl font-bold mb-6">Get in Touch</h1>
             
             {% if messages %}
@@ -74,7 +74,7 @@
         
         <!-- Contact Information -->
         <div>
-            <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+            <div class="bg-white rounded-lg shadow-sm p-8 mb-8">
                 <h2 class="text-2xl font-bold mb-6">Contact Information</h2>
                 
                 <div class="space-y-4">
@@ -133,7 +133,7 @@
             </div>
             
             <!-- Social Media -->
-            <div class="bg-white rounded-lg shadow-md p-8">
+            <div class="bg-white rounded-lg shadow-sm p-8">
                 <h2 class="text-2xl font-bold mb-6">Connect With Us</h2>
                 
                 <div class="flex space-x-4 mb-6">
@@ -159,7 +159,7 @@
     </div>
     
     <!-- Map Section -->
-    <div class="bg-white rounded-lg shadow-md p-8 mt-8">
+    {% comment %} <div class="bg-white rounded-lg shadow-sm p-8 mt-8">
         <h2 class="text-2xl font-bold mb-6">Our Location</h2>
         <div class="w-full h-96 bg-gray-200 rounded-lg">
             <!-- Replace with actual map when implementing -->
@@ -167,6 +167,6 @@
                 <span>Interactive Map Will Be Displayed Here</span>
             </div>
         </div>
-    </div>
+    </div> {% endcomment %}
 </div>
 {% endblock %}

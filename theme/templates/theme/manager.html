@@ -12,7 +12,7 @@
         <h2 class="text-xl font-semibold mb-4">Available Themes</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for theme in themes %}
-                <div class="bg-white rounded-lg shadow-md overflow-hidden border {% if theme == active_theme %}border-blue-500 border-2{% endif %}">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden border {% if theme == active_theme %}border-blue-500 border-2{% endif %}">
                     <div class="p-4">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="font-bold text-lg">{{ theme.name }}</h3>
@@ -55,7 +55,7 @@
         </div>
     </div>
     
-    <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="bg-white rounded-lg shadow-sm p-6">
         <h2 class="text-xl font-semibold mb-4">Create New Theme</h2>
         <form method="post" action="#">
             {% csrf_token %}

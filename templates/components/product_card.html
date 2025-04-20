@@ -1,6 +1,6 @@
 {% load static %}
 
-<div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300">
+<div class="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition duration-300">
     <!-- Product Image -->
     <a href="{% url 'products:product_detail' product.slug %}" class="block relative h-48 overflow-hidden">
         {% if product.main_image %}

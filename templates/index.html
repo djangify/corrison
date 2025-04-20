@@ -22,7 +22,7 @@
         </p>
         <div class="space-y-4 sm:flex sm:space-y-0 sm:space-x-4">
           <div class="w-full flex justify-center mt-4">
-            <a href="{% url 'products:catalog' %}" class="flex items-center justify-center gap-2 bg-gray-800 hover:bg-purple-500 text-white font-medium py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50">
+            <a href="{% url 'products:catalog' %}" class="flex items-center justify-center gap-2 bg-gray-800 hover:bg-purple-500 text-white font-medium py-3 px-6 rounded-lg shadow-sm transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50">
               <span class="text-base sm:text-lg">Shop Now</span>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
@@ -48,7 +48,7 @@
         <h2 class="text-3xl font-bold text-center mb-12">Featured Categories</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <!-- Category 1 - Large card -->
-            <div class="md:col-span-2 relative overflow-hidden rounded-lg shadow-md group">
+            <div class="md:col-span-2 relative overflow-hidden rounded-lg shadow-sm group">
                 <img src="{% static 'images/cat1.jpg' %}" alt="Category 1" class="w-full h-80 object-cover" onerror="this.src='https://via.placeholder.com/600x400?text=Category+1'">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
                     <h3 class="text-white text-2xl font-bold p-6">category 1 here</h3>
@@ -56,7 +56,7 @@
             </div>
             
             <!-- Category 2 -->
-            <div class="relative overflow-hidden rounded-lg shadow-md group">
+            <div class="relative overflow-hidden rounded-lg shadow-sm group">
                 <img src="{% static 'images/cat2.jpg' %}" alt="Category 2" class="w-full h-60 object-cover" onerror="this.src='https://via.placeholder.com/400x300?text=Category+2'">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end">
                     <h3 class="text-white text-lg font-bold p-4">category 2 here</h3>
@@ -64,7 +64,7 @@
             </div>
             
             <!-- Category 3 -->
-            <div class="relative overflow-hidden rounded-lg shadow-md group">
+            <div class="relative overflow-hidden rounded-lg shadow-sm group">
                 <img src="{% static 'images/cat3.jpg' %}" alt="Category 3" class="w-full h-60 object-cover" onerror="this.src='https://via.placeholder.com/400x300?text=Category+3'">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end">
                     <h3 class="text-white text-lg font-bold p-4">category 3 here</h3>
@@ -81,7 +81,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <!-- Product Cards - These would dynamically come from your products in the future -->
             {% for i in '12345678'|make_list %}
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition duration-300">
                     <div class="h-48 bg-gray-200 flex items-center justify-center">
                         <span class="text-gray-500 text-lg">Product Image</span>
                     </div>
@@ -104,25 +104,25 @@
         <h2 class="text-3xl font-bold text-center mb-12"> Core Features</h2>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 my-8">
-    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-md hover:border-blue-600">
+    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-sm hover:border-blue-600">
         <i class="fas fa-project-diagram" class="w-12 h-12 mb-4"></i>
         <h3 class="font-bold text-lg text-blue-600 mb-2"><a href="uploading-content/uloading-two/">Free Shipping</a></h3>
         <p class="text-gray-600">There is free shipping available on all orders over £60</p>
     </div>
     
-    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-md hover:border-blue-600">
+    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-sm hover:border-blue-600">
         <i class="fas fa-file-upload" class="w-12 h-12 mb-4"></i>
         <h3 class="font-bold text-lg text-blue-600 mb-2"><a href="/docs/uploading-content">Secure Payment</a></h3>
         <p class="text-gray-600">Your details and payment is 100% secure. We provide secure payment methods.</p>
     </div>
     
-    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-md hover:border-blue-600">
+    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-sm hover:border-blue-600">
         <i class="fas fa-cog" class="w-12 h-12 mb-4"></i>
         <h3 class="font-bold text-lg text-blue-600 mb-2"><a href="/docs/creating-prompts">Money Back Offer</a></h3>
         <p class="text-gray-600">Want to return a product? We offer a 30-day money back guarantee.</p>
     </div>
     
-    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-md hover:border-blue-600">
+    <div class="bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-sm hover:border-blue-600">
         
         <i class="fa-solid fa-download" class="w-12 h-12 mb-4"></i>
         <h3 class="font-bold text-lg text-blue-600 mb-2"><a href="/docs/exporting-content">Tracked Shipping</a></h3>
@@ -149,7 +149,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <!-- Testimonial Cards -->
             {% for i in '123'|make_list %}
-                <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="bg-white p-6 rounded-lg shadow-sm">
                     <div class="flex items-center mb-4">
                         <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
                         <div>

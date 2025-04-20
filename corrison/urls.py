@@ -22,8 +22,8 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     
     # Enable Django Debug Toolbar in development
-    try:
-        import debug_toolbar
-        urlpatterns.append(path('__debug__/', include(debug_toolbar.urls)))
-    except ImportError:
-        pass
+    # try:
+    #     import debug_toolbar
+    #     urlpatterns.append(path('__debug__/', include(debug_toolbar.urls)))
+    # except ImportError:
+    #     pass
