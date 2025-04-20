@@ -1,0 +1,108 @@
+# Django #
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media
+staticfiles/
+
+# Django.Python Stack #
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports #
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Environments #
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js #
+node_modules/
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.npm
+.yarn-integrity
+
+# IDEs and editors #
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Local development settings #
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files #
+tmp/
+temp/
+
+# Database migrations #
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# JavaScript build files #
+/frontend/build
+/frontend/dist
+
+# Media files created during testing #
+/media_test/
+
+# Backup files #
+*.bak
+
+# Secrets #
+secrets.json
+
+
+Production/
+.env
+static/
+staticfiles/
+.htaccess
+*.log
+passenger_wsgi.py
