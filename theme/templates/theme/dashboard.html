@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Theme Dashboard - Corrison Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Theme Dashboard</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Theme Manager Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-blue-500 text-white p-4">
+                <h2 class="text-xl font-semibold">Theme Manager</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Manage your store themes, create new ones, or customize existing ones.</p>
+                <a href="{% url 'theme:manager' %}" class="block w-full bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 transition duration-200">
+                    Manage Themes
+                </a>
+            </div>
+        </div>
+        
+        <!-- Banner Manager Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-purple-500 text-white p-4">
+                <h2 class="text-xl font-semibold">Banner Manager</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Create and manage banners for your store homepage and other pages.</p>
+                <a href="{% url 'theme:banner_manager' %}" class="block w-full bg-purple-500 text-white text-center py-2 rounded hover:bg-purple-600 transition duration-200">
+                    Manage Banners
+                </a>
+            </div>
+        </div>
+        
+        <!-- Footer Manager Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-green-500 text-white p-4">
+                <h2 class="text-xl font-semibold">Footer Manager</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Customize your store footer links and organize them into categories.</p>
+                <a href="{% url 'theme:footer_manager' %}" class="block w-full bg-green-500 text-white text-center py-2 rounded hover:bg-green-600 transition duration-200">
+                    Manage Footer
+                </a>
+            </div>
+        </div>
+        
+        <!-- Site Settings Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-orange-500 text-white p-4">
+                <h2 class="text-xl font-semibold">Site Settings</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Configure your store name, contact information, and other general settings.</p>
+                <a href="/admin/theme/sitesettings/" class="block w-full bg-orange-500 text-white text-center py-2 rounded hover:bg-orange-600 transition duration-200">
+                    Site Settings
+                </a>
+            </div>
+        </div>
+        
+        <!-- Current Theme Card -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden md:col-span-2">
+            <div class="bg-gray-800 text-white p-4">
+                <h2 class="text-xl font-semibold">Current Theme: {{ active_theme.name }}</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="h-10 rounded" style="background-color: {{ active_theme.primary_color }}"></div>
+                    <div class="h-10 rounded" style="background-color: {{ active_theme.secondary_color }}"></div>
+                    <div class="h-10 rounded" style="background-color: {{ active_theme.accent_color }}"></div>
+                </div>
+                <p class="text-gray-600 mb-4">Primary Font: {{ active_theme.font_primary }}</p>
+                <p class="text-gray-600 mb-4">Heading Font: {{ active_theme.font_headings }}</p>
+                <div class="flex space-x-2">
+                    <a href="{% url 'theme:preview_theme' active_theme.id %}" class="block px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition duration-200">
+                        Preview
+                    </a>
+                    <a href="/admin/theme/theme/{{ active_theme.id }}/change/" class="block px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-200">
+                        Edit in Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

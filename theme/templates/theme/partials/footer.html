@@ -1,0 +1,128 @@
+<!-- theme/templates/theme/partials/footer.html -->
+{% load static %}
+
+<footer class="bg-footer-background text-footer-text pt-12 pb-6">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <!-- Site info column -->
+            <div>
+                <h3 class="text-xl font-bold mb-4">{{ site_settings.site_name }}</h3>
+                {% if site_settings.site_description %}
+                    <p class="mb-4">{{ site_settings.site_description }}</p>
+                {% endif %}
+                
+                <!-- Social media links -->
+                <div class="flex space-x-4">
+                    {% if social_links.facebook %}
+                        <a href="{{ social_links.facebook }}" target="_blank" rel="noopener noreferrer" class="text-footer-text hover:text-primary">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                    {% endif %}
+                    
+                    {% if social_links.twitter %}
+                        <a href="{{ social_links.twitter }}" target="_blank" rel="noopener noreferrer" class="text-footer-text hover:text-primary">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                    {% endif %}
+                    
+                    {% if social_links.instagram %}
+                        <a href="{{ social_links.instagram }}" target="_blank" rel="noopener noreferrer" class="text-footer-text hover:text-primary">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                    {% endif %}
+                    
+                    {% if social_links.youtube %}
+                        <a href="{{ social_links.youtube }}" target="_blank" rel="noopener noreferrer" class="text-footer-text hover:text-primary">
+                            <i class="fab fa-youtube"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Footer links by category -->
+            {% for category, links in footer_links.items %}
+                <div>
+                    <h3 class="text-xl font-bold mb-4">
+                        {% if category == 'help' %}
+                            Customer Service
+                        {% elif category == 'about' %}
+                            About Us
+                        {% elif category == 'legal' %}
+                            Legal
+                        {% else %}
+                            Information
+                        {% endif %}
+                    </h3>
+                    
+                    <ul class="space-y-2">
+                        {% for link in links %}
+                            <li>
+                                <a href="{{ link.url }}" class="hover:text-primary">{{ link.title }}</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+            
+            <!-- If we need to fill in missing categories -->
+            {% if footer_links.keys|length < 3 %}
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Contact Us</h3>
+                    <ul class="space-y-2">
+                        {% if site_settings.contact_email %}
+                            <li>
+                                <a href="mailto:{{ site_settings.contact_email }}" class="hover:text-primary">
+                                    <i class="far fa-envelope mr-2"></i>{{ site_settings.contact_email }}
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% if site_settings.contact_phone %}
+                            <li>
+                                <a href="tel:{{ site_settings.contact_phone }}" class="hover:text-primary">
+                                    <i class="fas fa-phone mr-2"></i>{{ site_settings.contact_phone }}
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% if site_settings.contact_address %}
+                            <li>
+                                <i class="fas fa-map-marker-alt mr-2"></i>{{ site_settings.contact_address }}
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Footer bottom -->
+        <div class="border-t border-gray-700 pt-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <p>{{ site_settings.footer_text|default:"&copy; "|safe }} {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.</p>
+                
+                <!-- Payment methods -->
+                <div class="mt-4 md:mt-0">
+                    <div class="flex space-x-2">
+                        {% if site_settings.enable_stripe %}
+                            <span class="bg-white px-2 py-1 rounded">
+                                <i class="fab fa-cc-stripe text-gray-800 text-2xl"></i>
+                            </span>
+                        {% endif %}
+                        
+                        {% if site_settings.enable_paypal %}
+                            <span class="bg-white px-2 py-1 rounded">
+                                <i class="fab fa-paypal text-gray-800 text-2xl"></i>
+                            </span>
+                        {% endif %}
+                        
+                        {% if site_settings.enable_bank_transfer %}
+                            <span class="bg-white px-2 py-1 rounded">
+                                <i class="fas fa-university text-gray-800 text-2xl"></i>
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>

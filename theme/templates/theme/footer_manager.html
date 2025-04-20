@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Footer Manager - Corrison Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Footer Link Manager</h1>
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Add New Footer Link</h2>
+        <form method="post" action="#">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="title" class="block text-gray-700 mb-1">Link Title</label>
+                    <input type="text" id="title" name="title" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="url" class="block text-gray-700 mb-1">URL</label>
+                    <input type="text" id="url" name="url" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div>
+                    <label for="category" class="block text-gray-700 mb-1">Category</label>
+                    <select id="category" name="category" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {% for key, value in categories.items %}
+                            <option value="{{ key }}">{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex items-center">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="is_active" name="is_active" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <span class="ml-2 text-gray-700">Active</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div>
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Add Footer Link
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Manage Footer Links</h2>
+        <p class="text-gray-600 mb-4">Drag and drop to reorder links within each category. Changes will be saved automatically.</p>
+        
+        <div class="space-y-8">
+            {% regroup footer_links by get_category_display as categorized_links %}
+            
+            {% for category in categorized_links %}
+                <div class="border border-gray-200 rounded-md p-4">
+                    <h3 class="font-semibold text-lg mb-4">{{ category.grouper }}</h3>
+                    
+                    <div class="footer-links-container space-y-2" data-category="{{ category.list.0.category }}">
+                        {% for link in category.list %}
+                            <div class="footer-link-item flex items-center bg-gray-50 p-3 rounded" data-id="{{ link.id }}">
+                                <div class="mr-4 cursor-move">
+                                    <i class="fas fa-grip-lines"></i>
+                                </div>
+                                <div class="flex-grow">
+                                    <span class="font-medium">{{ link.title }}</span>
+                                    <span class="text-gray-500 text-sm ml-2">{{ link.url }}</span>
+                                </div>
+                                <div class="flex space-x-2 ml-4">
+                                    <span class="px-2 py-1 rounded-full text-xs {% if link.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ link.is_active|yesno:"Active,Inactive" }}
+                                    </span>
+                                    <a href="{% url 'theme:toggle_footer_link' link.id %}" class="text-blue-500 hover:text-blue-700">
+                                        {{ link.is_active|yesno:"Deactivate,Activate" }}
+                                    </a>
+                                    <a href="#" class="text-blue-500 hover:text-blue-700">Edit</a>
+                                    <a href="#" class="text-red-500 hover:text-red-700" onclick="return confirm('Are you sure you want to delete this link?')">Delete</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-gray-500 italic">No footer links available. Add your first link above.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const containers = document.querySelectorAll('.footer-links-container');
+        
+        containers.forEach(container => {
+            new Sortable(container, {
+                animation: 150,
+                handle: '.cursor-move',
+                onEnd: function() {
+                    saveOrder(container);
+                }
+            });
+        });
+        
+        function saveOrder(container) {
+            const items = container.querySelectorAll('.footer-link-item');
+            const order = Array.from(items).map(item => item.dataset.id);
+            
+            // Send order to server
+            fetch('{% url "theme:reorder_footer_links" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({
+                    'link_order[]': order
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Footer link order updated successfully');
+                } else {
+                    console.error('Error updating footer link order:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating footer link order:', error);
+            });
+        }
+    });
