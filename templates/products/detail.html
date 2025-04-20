@@ -1,0 +1,1685 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Corrison Store{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css" />
+<style>
+    .slick-prev:before, .slick-next:before {
+        color: #3b82f6;
+    }
+    .product-thumbnail.active {
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumbs.html' with items=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row">
+            <!-- Product Images -->
+            <div class="w-full md:w-1/2 md:pr-8">
+                <!-- Main Image -->
+                <div class="mb-4">
+                    <div class="product-main-image bg-gray-100 rounded-lg overflow-hidden h-96">
+                        <div class="product-images">
+                            <!-- Main product image -->
+                            <div>
+                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain">
+                            </div>
+                            
+                            <!-- Additional product images -->
+                            {% for image in product.images.all %}
+                                <div>
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-contain">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thumbnails -->
+                {% if product.images.exists %}
+                    <div class="product-thumbnails grid grid-cols-5 gap-2">
+                        <!-- Main image thumbnail -->
+                        <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <!-- Additional image thumbnails -->
+                        {% for image in product.images.all %}
+                            <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-cover">
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Product Info -->
+            <div class="w-full md:w-1/2 mt-6 md:mt-0">
+                <!-- Category -->
+                <div class="mb-2">
+                    <a href="{% url 'products:category_detail' product.category.slug %}" class="text-sm text-gray-500 hover:text-blue-600">
+                        {{ product.category.name }}
+                    </a>
+                </div>
+                
+                <!-- Product Name -->
+                <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
+                
+                <!-- SKU -->
+                <p class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</p>
+                
+                <!-- Price -->
+                <div class="mb-6">
+                    {% if product.is_on_sale %}
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-red-600">${{ product.sale_price }}</span>
+                            <span class="ml-2 text-lg text-gray-500 line-through">${{ product.price }}</span>
+                            <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">SALE</span>
+                        </div>
+                    {% else %}
+                        <span class="text-2xl font-bold">${{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Variant Selection (if available) -->
+                {% if variants %}
+                    <form id="add-to-cart-form" action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Group variants by attribute -->
+                        {% regroup variants|dictsort:"attributes.first.attribute.name" by attributes.first.attribute as variant_attributes %}
+                        
+                        {% for attribute_group in variant_attributes %}
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2">
+                                    {{ attribute_group.grouper }}
+                                </label>
+                                
+                                <div class="flex flex-wrap gap-2">
+                                    {% for variant in attribute_group.list %}
+                                        {% for attr_value in variant.attributes.all %}
+                                            {% if attr_value.attribute.name == attribute_group.grouper %}
+                                                <div class="variant-option">
+                                                    <input type="radio" name="attr_{{ attr_value.attribute.id }}" id="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}"
+                                                           value="{{ attr_value.id }}" class="hidden variant-radio" data-attribute="{{ attr_value.attribute.name }}" data-value="{{ attr_value.value }}">
+                                                    <label for="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}" 
+                                                           class="px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:border-blue-500 variant-label">
+                                                        {{ attr_value.value }}
+                                                    </label>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        
+                        <input type="hidden" name="variant_id" id="selected-variant-id">
+                        
+                        <!-- Selected Variant Details -->
+                        <div id="variant-details" class="mb-6 hidden">
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">Price:</span> 
+                                <span id="variant-price" class="font-bold"></span>
+                                <span id="variant-sale-price" class="ml-2 text-red-600 font-bold hidden"></span>
+                            </p>
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">SKU:</span> 
+                                <span id="variant-sku"></span>
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold">Availability:</span> 
+                                <span id="variant-stock" class=""></span>
+                            </p>
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" id="add-to-cart-btn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow">
+                                Add to Cart
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <!-- No variants, simple add to cart -->
+                    <form action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Availability -->
+                        <p class="mb-4">
+                            <span class="font-semibold">Availability:</span> 
+                            {% if product.in_stock and product.stock_qty > 0 %}
+                                <span class="text-green-600">In Stock ({{ product.stock_qty }} available)</span>
+                            {% else %}
+                                <span class="text-red-600">Out of Stock</span>
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow"
+                                   {% if not product.in_stock or product.stock_qty <= 0 %}disabled{% endif %}>
+                                {% if product.in_stock and product.stock_qty > 0 %}
+                                    Add to Cart
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- Product Summary -->
+                <div class="mt-6">
+                    <h3 class="font-semibold text-lg mb-2">About this product</h3>
+                    <div class="text-gray-700">
+                        {{ product.description|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Details / Description Tabs -->
+    <div class="mb-12">
+        <div class="border-b border-gray-300">
+            <ul class="flex flex-wrap -mb-px" id="product-tabs" role="tablist">
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-blue-600 border-b-2 border-blue-600 active"
+                            id="description-tab" data-tabs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">
+                        Description
+                    </button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="attributes-tab" data-tabs-target="#attributes" type="button" role="tab" aria-controls="attributes" aria-selected="false">
+                        Specifications
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="shipping-tab" data-tabs-target="#shipping" type="button" role="tab" aria-controls="shipping" aria-selected="false">
+                        Shipping & Returns
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div id="product-tabs-content">
+            <div class="p-6 bg-white rounded-lg shadow-md tab-panel" id="description" role="tabpanel" aria-labelledby="description-tab">
+                {{ product.description|safe }}
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="attributes" role="tabpanel" aria-labelledby="attributes-tab">
+                <!-- Attributes/Specifications -->
+                <h3 class="text-lg font-semibold mb-4">Product Specifications</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p><span class="font-semibold">SKU:</span> {{ product.sku }}</p>
+                        <p><span class="font-semibold">Category:</span> {{ product.category.name }}</p>
+                        <!-- Add more attributes here as needed -->
+                    </div>
+                </div>
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="shipping" role="tabpanel" aria-labelledby="shipping-tab">
+                <!-- Shipping & Returns Info -->
+                <h3 class="text-lg font-semibold mb-4">Shipping Information</h3>
+                <p class="mb-4">We ship to all 50 states and most international locations. Standard shipping typically takes 3-5 business days. Expedited shipping options are available at checkout.</p>
+                
+                <h3 class="text-lg font-semibold mb-4">Return Policy</h3>
+                <p>If you're not completely satisfied with your purchase, you may return it within 30 days for a full refund. Items must be in original condition with all packaging and tags.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Products -->
+    {% if related_products %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for related_product in related_products %}             
+                  {% include 'components/product_card.html' with product=related_product %}
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.js"></script>
+<script>
+    // Initialize slick carousel for product images
+    $(document).ready(function(){
+        $('.product-images').slick({
+            slidesToShow: 1,
+            slidesToScroll: 1,
+            arrows: true,
+            fade: true,
+            asNavFor: '.product-thumbnails'
+        });
+        
+        $('.product-thumbnails').slick({
+            slidesToShow: 5,
+            slidesToScroll: 1,
+            asNavFor: '.product-images',
+            dots: false,
+            centerMode: false,
+            focusOnSelect: true,
+            arrows: false
+        });
+        
+        // Add active class to the first thumbnail
+        $('.product-thumbnail:first-child').addClass('active');
+        
+        // Add active class to thumbnail when its slide is active
+        $('.product-images').on('afterChange', function(event, slick, currentSlide){
+            $('.product-thumbnail').removeClass('active');
+            $('.product-thumbnail:nth-child(' + (currentSlide + 1) + ')').addClass('active');
+        });
+        
+        // Initialize tabs
+        const tabElements = [
+            {
+                id: 'description',
+                triggerEl: document.getElementById('description-tab'),
+                targetEl: document.getElementById('description')
+            },
+            {
+                id: 'attributes',
+                triggerEl: document.getElementById('attributes-tab'),
+                targetEl: document.getElementById('attributes')
+            },
+            {
+                id: 'shipping',
+                triggerEl: document.getElementById('shipping-tab'),
+                targetEl: document.getElementById('shipping')
+            }
+        ];
+        
+        // Handle tab clicks
+        tabElements.forEach(tab => {
+            tab.triggerEl.addEventListener('click', function() {
+                // Hide all tab panels
+                document.querySelectorAll('.tab-panel').forEach(panel => {
+                    panel.classList.add('hidden');
+                });
+                
+                // Remove active class from all tabs
+                document.querySelectorAll('#product-tabs button').forEach(button => {
+                    button.classList.remove('text-blue-600', 'border-blue-600');
+                    button.classList.add('text-gray-500', 'border-transparent');
+                    button.setAttribute('aria-selected', 'false');
+                });
+                
+                // Show the selected tab panel
+                tab.targetEl.classList.remove('hidden');
+                
+                // Add active class to the clicked tab
+                tab.triggerEl.classList.remove('text-gray-500', 'border-transparent');
+                tab.triggerEl.classList.add('text-blue-600', 'border-blue-600');
+                tab.triggerEl.setAttribute('aria-selected', 'true');
+            });
+        });
+    });
+    
+    // Quantity increment/decrement
+    function incrementQuantity() {
+        const quantityInput = document.getElementById('quantity');
+        const maxQty = parseInt(quantityInput.getAttribute('max'));
+        let currentQty = parseInt(quantityInput.value);
+        
+        if (currentQty < maxQty) {
+            quantityInput.value = currentQty + 1;
+        }
+    }
+    
+    function decrementQuantity() {
+        const quantityInput = document.getElementById('quantity');
+        let currentQty = parseInt(quantityInput.value);
+        
+        if (currentQty > 1) {
+            quantityInput.value = currentQty - 1;
+        }
+    }
+    
+    {% if variants %}
+    // Handle variant selection
+    document.querySelectorAll('.variant-radio').forEach(radio => {
+        radio.addEventListener('change', updateVariantSelection);
+    });
+    
+    function updateVariantSelection() {
+        // Get all selected attributes
+        const selectedAttributes = {};
+        document.querySelectorAll('.variant-radio:checked').forEach(radio => {
+            selectedAttributes[radio.getAttribute('data-attribute')] = radio.getAttribute('data-value');
+        });
+        
+        // Highlight selected variant labels
+        document.querySelectorAll('.variant-label').forEach(label => {
+            label.classList.remove('border-blue-500', 'bg-blue-50');
+        });
+        
+        document.querySelectorAll('.variant-radio:checked').forEach(radio => {
+            const label = document.querySelector(`label[for="${radio.id}"]`);
+            label.classList.add('border-blue-500', 'bg-blue-50');
+        });
+        
+        // Check if all required attributes are selected
+        const requiredAttributeCount = {{ variants|first|length }};
+        if (Object.keys(selectedAttributes).length === requiredAttributeCount) {
+            // Get variant details
+            getVariantDetails();
+        }
+    }
+    
+    function getVariantDetails() {
+        const form = document.getElementById('add-to-cart-form');
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        
+        // Add product_id to the parameters
+        params.append('product_id', '{{ product.id }}');
+        
+        // Add all selected attributes to the parameters
+        for (const pair of formData.entries()) {
+            if (pair[0].startsWith('attr_')) {
+                params.append(pair[0], pair[1]);
+            }
+        }
+        
+        // Send AJAX request to get variant details
+        fetch('{% url "products:get_variant_price" %}?' + params.toString(), {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update variant details
+                document.getElementById('variant-details').classList.remove('hidden');
+                document.getElementById('variant-sku').textContent = data.sku;
+                
+                if (data.sale_price) {
+                    document.getElementById('variant-price').textContent = ' extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Corrison Store{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css" />
+<style>
+    .slick-prev:before, .slick-next:before {
+        color: #3b82f6;
+    }
+    .product-thumbnail.active {
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumbs.html' with items=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row">
+            <!-- Product Images -->
+            <div class="w-full md:w-1/2 md:pr-8">
+                <!-- Main Image -->
+                <div class="mb-4">
+                    <div class="product-main-image bg-gray-100 rounded-lg overflow-hidden h-96">
+                        <div class="product-images">
+                            <!-- Main product image -->
+                            <div>
+                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain">
+                            </div>
+                            
+                            <!-- Additional product images -->
+                            {% for image in product.images.all %}
+                                <div>
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-contain">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thumbnails -->
+                {% if product.images.exists %}
+                    <div class="product-thumbnails grid grid-cols-5 gap-2">
+                        <!-- Main image thumbnail -->
+                        <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <!-- Additional image thumbnails -->
+                        {% for image in product.images.all %}
+                            <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-cover">
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Product Info -->
+            <div class="w-full md:w-1/2 mt-6 md:mt-0">
+                <!-- Category -->
+                <div class="mb-2">
+                    <a href="{% url 'products:category_detail' product.category.slug %}" class="text-sm text-gray-500 hover:text-blue-600">
+                        {{ product.category.name }}
+                    </a>
+                </div>
+                
+                <!-- Product Name -->
+                <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
+                
+                <!-- SKU -->
+                <p class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</p>
+                
+                <!-- Price -->
+                <div class="mb-6">
+                    {% if product.is_on_sale %}
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-red-600">${{ product.sale_price }}</span>
+                            <span class="ml-2 text-lg text-gray-500 line-through">${{ product.price }}</span>
+                            <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">SALE</span>
+                        </div>
+                    {% else %}
+                        <span class="text-2xl font-bold">${{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Variant Selection (if available) -->
+                {% if variants %}
+                    <form id="add-to-cart-form" action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Group variants by attribute -->
+                        {% regroup variants|dictsort:"attributes.first.attribute.name" by attributes.first.attribute as variant_attributes %}
+                        
+                        {% for attribute_group in variant_attributes %}
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2">
+                                    {{ attribute_group.grouper }}
+                                </label>
+                                
+                                <div class="flex flex-wrap gap-2">
+                                    {% for variant in attribute_group.list %}
+                                        {% for attr_value in variant.attributes.all %}
+                                            {% if attr_value.attribute.name == attribute_group.grouper %}
+                                                <div class="variant-option">
+                                                    <input type="radio" name="attr_{{ attr_value.attribute.id }}" id="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}"
+                                                           value="{{ attr_value.id }}" class="hidden variant-radio" data-attribute="{{ attr_value.attribute.name }}" data-value="{{ attr_value.value }}">
+                                                    <label for="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}" 
+                                                           class="px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:border-blue-500 variant-label">
+                                                        {{ attr_value.value }}
+                                                    </label>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        
+                        <input type="hidden" name="variant_id" id="selected-variant-id">
+                        
+                        <!-- Selected Variant Details -->
+                        <div id="variant-details" class="mb-6 hidden">
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">Price:</span> 
+                                <span id="variant-price" class="font-bold"></span>
+                                <span id="variant-sale-price" class="ml-2 text-red-600 font-bold hidden"></span>
+                            </p>
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">SKU:</span> 
+                                <span id="variant-sku"></span>
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold">Availability:</span> 
+                                <span id="variant-stock" class=""></span>
+                            </p>
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" id="add-to-cart-btn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow">
+                                Add to Cart
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <!-- No variants, simple add to cart -->
+                    <form action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Availability -->
+                        <p class="mb-4">
+                            <span class="font-semibold">Availability:</span> 
+                            {% if product.in_stock and product.stock_qty > 0 %}
+                                <span class="text-green-600">In Stock ({{ product.stock_qty }} available)</span>
+                            {% else %}
+                                <span class="text-red-600">Out of Stock</span>
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow"
+                                   {% if not product.in_stock or product.stock_qty <= 0 %}disabled{% endif %}>
+                                {% if product.in_stock and product.stock_qty > 0 %}
+                                    Add to Cart
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- Product Summary -->
+                <div class="mt-6">
+                    <h3 class="font-semibold text-lg mb-2">About this product</h3>
+                    <div class="text-gray-700">
+                        {{ product.description|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Details / Description Tabs -->
+    <div class="mb-12">
+        <div class="border-b border-gray-300">
+            <ul class="flex flex-wrap -mb-px" id="product-tabs" role="tablist">
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-blue-600 border-b-2 border-blue-600 active"
+                            id="description-tab" data-tabs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">
+                        Description
+                    </button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="attributes-tab" data-tabs-target="#attributes" type="button" role="tab" aria-controls="attributes" aria-selected="false">
+                        Specifications
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="shipping-tab" data-tabs-target="#shipping" type="button" role="tab" aria-controls="shipping" aria-selected="false">
+                        Shipping & Returns
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div id="product-tabs-content">
+            <div class="p-6 bg-white rounded-lg shadow-md tab-panel" id="description" role="tabpanel" aria-labelledby="description-tab">
+                {{ product.description|safe }}
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="attributes" role="tabpanel" aria-labelledby="attributes-tab">
+                <!-- Attributes/Specifications -->
+                <h3 class="text-lg font-semibold mb-4">Product Specifications</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p><span class="font-semibold">SKU:</span> {{ product.sku }}</p>
+                        <p><span class="font-semibold">Category:</span> {{ product.category.name }}</p>
+                        <!-- Add more attributes here as needed -->
+                    </div>
+                </div>
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="shipping" role="tabpanel" aria-labelledby="shipping-tab">
+                <!-- Shipping & Returns Info -->
+                <h3 class="text-lg font-semibold mb-4">Shipping Information</h3>
+                <p class="mb-4">We ship to all 50 states and most international locations. Standard shipping typically takes 3-5 business days. Expedited shipping options are available at checkout.</p>
+                
+                <h3 class="text-lg font-semibold mb-4">Return Policy</h3>
+                <p>If you're not completely satisfied with your purchase, you may return it within 30 days for a full refund. Items must be in original condition with all packaging and tags.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Products -->
+    {% if related_products %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for related_product in related_products %}
+                    {% + data.price;
+                    document.getElementById('variant-price').classList.add('line-through', 'text-gray-500');
+                    document.getElementById('variant-sale-price').textContent = ' extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Corrison Store{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css" />
+<style>
+    .slick-prev:before, .slick-next:before {
+        color: #3b82f6;
+    }
+    .product-thumbnail.active {
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumbs.html' with items=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row">
+            <!-- Product Images -->
+            <div class="w-full md:w-1/2 md:pr-8">
+                <!-- Main Image -->
+                <div class="mb-4">
+                    <div class="product-main-image bg-gray-100 rounded-lg overflow-hidden h-96">
+                        <div class="product-images">
+                            <!-- Main product image -->
+                            <div>
+                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain">
+                            </div>
+                            
+                            <!-- Additional product images -->
+                            {% for image in product.images.all %}
+                                <div>
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-contain">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thumbnails -->
+                {% if product.images.exists %}
+                    <div class="product-thumbnails grid grid-cols-5 gap-2">
+                        <!-- Main image thumbnail -->
+                        <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <!-- Additional image thumbnails -->
+                        {% for image in product.images.all %}
+                            <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-cover">
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Product Info -->
+            <div class="w-full md:w-1/2 mt-6 md:mt-0">
+                <!-- Category -->
+                <div class="mb-2">
+                    <a href="{% url 'products:category_detail' product.category.slug %}" class="text-sm text-gray-500 hover:text-blue-600">
+                        {{ product.category.name }}
+                    </a>
+                </div>
+                
+                <!-- Product Name -->
+                <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
+                
+                <!-- SKU -->
+                <p class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</p>
+                
+                <!-- Price -->
+                <div class="mb-6">
+                    {% if product.is_on_sale %}
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-red-600">${{ product.sale_price }}</span>
+                            <span class="ml-2 text-lg text-gray-500 line-through">${{ product.price }}</span>
+                            <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">SALE</span>
+                        </div>
+                    {% else %}
+                        <span class="text-2xl font-bold">${{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Variant Selection (if available) -->
+                {% if variants %}
+                    <form id="add-to-cart-form" action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Group variants by attribute -->
+                        {% regroup variants|dictsort:"attributes.first.attribute.name" by attributes.first.attribute as variant_attributes %}
+                        
+                        {% for attribute_group in variant_attributes %}
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2">
+                                    {{ attribute_group.grouper }}
+                                </label>
+                                
+                                <div class="flex flex-wrap gap-2">
+                                    {% for variant in attribute_group.list %}
+                                        {% for attr_value in variant.attributes.all %}
+                                            {% if attr_value.attribute.name == attribute_group.grouper %}
+                                                <div class="variant-option">
+                                                    <input type="radio" name="attr_{{ attr_value.attribute.id }}" id="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}"
+                                                           value="{{ attr_value.id }}" class="hidden variant-radio" data-attribute="{{ attr_value.attribute.name }}" data-value="{{ attr_value.value }}">
+                                                    <label for="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}" 
+                                                           class="px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:border-blue-500 variant-label">
+                                                        {{ attr_value.value }}
+                                                    </label>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        
+                        <input type="hidden" name="variant_id" id="selected-variant-id">
+                        
+                        <!-- Selected Variant Details -->
+                        <div id="variant-details" class="mb-6 hidden">
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">Price:</span> 
+                                <span id="variant-price" class="font-bold"></span>
+                                <span id="variant-sale-price" class="ml-2 text-red-600 font-bold hidden"></span>
+                            </p>
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">SKU:</span> 
+                                <span id="variant-sku"></span>
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold">Availability:</span> 
+                                <span id="variant-stock" class=""></span>
+                            </p>
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" id="add-to-cart-btn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow">
+                                Add to Cart
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <!-- No variants, simple add to cart -->
+                    <form action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Availability -->
+                        <p class="mb-4">
+                            <span class="font-semibold">Availability:</span> 
+                            {% if product.in_stock and product.stock_qty > 0 %}
+                                <span class="text-green-600">In Stock ({{ product.stock_qty }} available)</span>
+                            {% else %}
+                                <span class="text-red-600">Out of Stock</span>
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow"
+                                   {% if not product.in_stock or product.stock_qty <= 0 %}disabled{% endif %}>
+                                {% if product.in_stock and product.stock_qty > 0 %}
+                                    Add to Cart
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- Product Summary -->
+                <div class="mt-6">
+                    <h3 class="font-semibold text-lg mb-2">About this product</h3>
+                    <div class="text-gray-700">
+                        {{ product.description|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Details / Description Tabs -->
+    <div class="mb-12">
+        <div class="border-b border-gray-300">
+            <ul class="flex flex-wrap -mb-px" id="product-tabs" role="tablist">
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-blue-600 border-b-2 border-blue-600 active"
+                            id="description-tab" data-tabs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">
+                        Description
+                    </button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="attributes-tab" data-tabs-target="#attributes" type="button" role="tab" aria-controls="attributes" aria-selected="false">
+                        Specifications
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="shipping-tab" data-tabs-target="#shipping" type="button" role="tab" aria-controls="shipping" aria-selected="false">
+                        Shipping & Returns
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div id="product-tabs-content">
+            <div class="p-6 bg-white rounded-lg shadow-md tab-panel" id="description" role="tabpanel" aria-labelledby="description-tab">
+                {{ product.description|safe }}
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="attributes" role="tabpanel" aria-labelledby="attributes-tab">
+                <!-- Attributes/Specifications -->
+                <h3 class="text-lg font-semibold mb-4">Product Specifications</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p><span class="font-semibold">SKU:</span> {{ product.sku }}</p>
+                        <p><span class="font-semibold">Category:</span> {{ product.category.name }}</p>
+                        <!-- Add more attributes here as needed -->
+                    </div>
+                </div>
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="shipping" role="tabpanel" aria-labelledby="shipping-tab">
+                <!-- Shipping & Returns Info -->
+                <h3 class="text-lg font-semibold mb-4">Shipping Information</h3>
+                <p class="mb-4">We ship to all 50 states and most international locations. Standard shipping typically takes 3-5 business days. Expedited shipping options are available at checkout.</p>
+                
+                <h3 class="text-lg font-semibold mb-4">Return Policy</h3>
+                <p>If you're not completely satisfied with your purchase, you may return it within 30 days for a full refund. Items must be in original condition with all packaging and tags.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Products -->
+    {% if related_products %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for related_product in related_products %}
+                    {% + data.sale_price;
+                    document.getElementById('variant-sale-price').classList.remove('hidden');
+                } else {
+                    document.getElementById('variant-price').textContent = ' extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Corrison Store{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css" />
+<style>
+    .slick-prev:before, .slick-next:before {
+        color: #3b82f6;
+    }
+    .product-thumbnail.active {
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumbs.html' with items=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row">
+            <!-- Product Images -->
+            <div class="w-full md:w-1/2 md:pr-8">
+                <!-- Main Image -->
+                <div class="mb-4">
+                    <div class="product-main-image bg-gray-100 rounded-lg overflow-hidden h-96">
+                        <div class="product-images">
+                            <!-- Main product image -->
+                            <div>
+                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain">
+                            </div>
+                            
+                            <!-- Additional product images -->
+                            {% for image in product.images.all %}
+                                <div>
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-contain">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thumbnails -->
+                {% if product.images.exists %}
+                    <div class="product-thumbnails grid grid-cols-5 gap-2">
+                        <!-- Main image thumbnail -->
+                        <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <!-- Additional image thumbnails -->
+                        {% for image in product.images.all %}
+                            <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-cover">
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Product Info -->
+            <div class="w-full md:w-1/2 mt-6 md:mt-0">
+                <!-- Category -->
+                <div class="mb-2">
+                    <a href="{% url 'products:category_detail' product.category.slug %}" class="text-sm text-gray-500 hover:text-blue-600">
+                        {{ product.category.name }}
+                    </a>
+                </div>
+                
+                <!-- Product Name -->
+                <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
+                
+                <!-- SKU -->
+                <p class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</p>
+                
+                <!-- Price -->
+                <div class="mb-6">
+                    {% if product.is_on_sale %}
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-red-600">${{ product.sale_price }}</span>
+                            <span class="ml-2 text-lg text-gray-500 line-through">${{ product.price }}</span>
+                            <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">SALE</span>
+                        </div>
+                    {% else %}
+                        <span class="text-2xl font-bold">${{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Variant Selection (if available) -->
+                {% if variants %}
+                    <form id="add-to-cart-form" action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Group variants by attribute -->
+                        {% regroup variants|dictsort:"attributes.first.attribute.name" by attributes.first.attribute as variant_attributes %}
+                        
+                        {% for attribute_group in variant_attributes %}
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2">
+                                    {{ attribute_group.grouper }}
+                                </label>
+                                
+                                <div class="flex flex-wrap gap-2">
+                                    {% for variant in attribute_group.list %}
+                                        {% for attr_value in variant.attributes.all %}
+                                            {% if attr_value.attribute.name == attribute_group.grouper %}
+                                                <div class="variant-option">
+                                                    <input type="radio" name="attr_{{ attr_value.attribute.id }}" id="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}"
+                                                           value="{{ attr_value.id }}" class="hidden variant-radio" data-attribute="{{ attr_value.attribute.name }}" data-value="{{ attr_value.value }}">
+                                                    <label for="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}" 
+                                                           class="px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:border-blue-500 variant-label">
+                                                        {{ attr_value.value }}
+                                                    </label>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        
+                        <input type="hidden" name="variant_id" id="selected-variant-id">
+                        
+                        <!-- Selected Variant Details -->
+                        <div id="variant-details" class="mb-6 hidden">
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">Price:</span> 
+                                <span id="variant-price" class="font-bold"></span>
+                                <span id="variant-sale-price" class="ml-2 text-red-600 font-bold hidden"></span>
+                            </p>
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">SKU:</span> 
+                                <span id="variant-sku"></span>
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold">Availability:</span> 
+                                <span id="variant-stock" class=""></span>
+                            </p>
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" id="add-to-cart-btn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow">
+                                Add to Cart
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <!-- No variants, simple add to cart -->
+                    <form action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Availability -->
+                        <p class="mb-4">
+                            <span class="font-semibold">Availability:</span> 
+                            {% if product.in_stock and product.stock_qty > 0 %}
+                                <span class="text-green-600">In Stock ({{ product.stock_qty }} available)</span>
+                            {% else %}
+                                <span class="text-red-600">Out of Stock</span>
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow"
+                                   {% if not product.in_stock or product.stock_qty <= 0 %}disabled{% endif %}>
+                                {% if product.in_stock and product.stock_qty > 0 %}
+                                    Add to Cart
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- Product Summary -->
+                <div class="mt-6">
+                    <h3 class="font-semibold text-lg mb-2">About this product</h3>
+                    <div class="text-gray-700">
+                        {{ product.description|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Details / Description Tabs -->
+    <div class="mb-12">
+        <div class="border-b border-gray-300">
+            <ul class="flex flex-wrap -mb-px" id="product-tabs" role="tablist">
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-blue-600 border-b-2 border-blue-600 active"
+                            id="description-tab" data-tabs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">
+                        Description
+                    </button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="attributes-tab" data-tabs-target="#attributes" type="button" role="tab" aria-controls="attributes" aria-selected="false">
+                        Specifications
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="shipping-tab" data-tabs-target="#shipping" type="button" role="tab" aria-controls="shipping" aria-selected="false">
+                        Shipping & Returns
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div id="product-tabs-content">
+            <div class="p-6 bg-white rounded-lg shadow-md tab-panel" id="description" role="tabpanel" aria-labelledby="description-tab">
+                {{ product.description|safe }}
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="attributes" role="tabpanel" aria-labelledby="attributes-tab">
+                <!-- Attributes/Specifications -->
+                <h3 class="text-lg font-semibold mb-4">Product Specifications</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p><span class="font-semibold">SKU:</span> {{ product.sku }}</p>
+                        <p><span class="font-semibold">Category:</span> {{ product.category.name }}</p>
+                        <!-- Add more attributes here as needed -->
+                    </div>
+                </div>
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="shipping" role="tabpanel" aria-labelledby="shipping-tab">
+                <!-- Shipping & Returns Info -->
+                <h3 class="text-lg font-semibold mb-4">Shipping Information</h3>
+                <p class="mb-4">We ship to all 50 states and most international locations. Standard shipping typically takes 3-5 business days. Expedited shipping options are available at checkout.</p>
+                
+                <h3 class="text-lg font-semibold mb-4">Return Policy</h3>
+                <p>If you're not completely satisfied with your purchase, you may return it within 30 days for a full refund. Items must be in original condition with all packaging and tags.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Products -->
+    {% if related_products %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for related_product in related_products %}
+                    {% + data.price;
+                    document.getElementById('variant-price').classList.remove('line-through', 'text-gray-500');
+                    document.getElementById('variant-sale-price').classList.add('hidden');
+                }
+                
+                if (data.in_stock) {
+                    document.getElementById('variant-stock').textContent = 'In Stock (' + data.stock_qty + ' available)';
+                    document.getElementById('variant-stock').className = 'text-green-600';
+                    document.getElementById('add-to-cart-btn').disabled = false;
+                    document.getElementById('quantity').setAttribute('max', data.stock_qty);
+                } else {
+                    document.getElementById('variant-stock').textContent = 'Out of Stock';
+                    document.getElementById('variant-stock').className = 'text-red-600';
+                    document.getElementById('add-to-cart-btn').disabled = true;
+                }
+                
+                // Set the selected variant ID in the form
+                document.getElementById('selected-variant-id').value = data.id;
+            } else {
+                console.error('Error fetching variant details:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    {% endif %}
+</script>
+{% endblock %} extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Corrison Store{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css" />
+<style>
+    .slick-prev:before, .slick-next:before {
+        color: #3b82f6;
+    }
+    .product-thumbnail.active {
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumbs.html' with items=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row">
+            <!-- Product Images -->
+            <div class="w-full md:w-1/2 md:pr-8">
+                <!-- Main Image -->
+                <div class="mb-4">
+                    <div class="product-main-image bg-gray-100 rounded-lg overflow-hidden h-96">
+                        <div class="product-images">
+                            <!-- Main product image -->
+                            <div>
+                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-contain">
+                            </div>
+                            
+                            <!-- Additional product images -->
+                            {% for image in product.images.all %}
+                                <div>
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-contain">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Thumbnails -->
+                {% if product.images.exists %}
+                    <div class="product-thumbnails grid grid-cols-5 gap-2">
+                        <!-- Main image thumbnail -->
+                        <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <!-- Additional image thumbnails -->
+                        {% for image in product.images.all %}
+                            <div class="product-thumbnail h-20 border-2 border-transparent rounded-md overflow-hidden cursor-pointer">
+                                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" class="w-full h-full object-cover">
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Product Info -->
+            <div class="w-full md:w-1/2 mt-6 md:mt-0">
+                <!-- Category -->
+                <div class="mb-2">
+                    <a href="{% url 'products:category_detail' product.category.slug %}" class="text-sm text-gray-500 hover:text-blue-600">
+                        {{ product.category.name }}
+                    </a>
+                </div>
+                
+                <!-- Product Name -->
+                <h1 class="text-3xl font-bold mb-2">{{ product.name }}</h1>
+                
+                <!-- SKU -->
+                <p class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</p>
+                
+                <!-- Price -->
+                <div class="mb-6">
+                    {% if product.is_on_sale %}
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-red-600">${{ product.sale_price }}</span>
+                            <span class="ml-2 text-lg text-gray-500 line-through">${{ product.price }}</span>
+                            <span class="ml-2 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">SALE</span>
+                        </div>
+                    {% else %}
+                        <span class="text-2xl font-bold">${{ product.price }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Variant Selection (if available) -->
+                {% if variants %}
+                    <form id="add-to-cart-form" action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Group variants by attribute -->
+                        {% regroup variants|dictsort:"attributes.first.attribute.name" by attributes.first.attribute as variant_attributes %}
+                        
+                        {% for attribute_group in variant_attributes %}
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2">
+                                    {{ attribute_group.grouper }}
+                                </label>
+                                
+                                <div class="flex flex-wrap gap-2">
+                                    {% for variant in attribute_group.list %}
+                                        {% for attr_value in variant.attributes.all %}
+                                            {% if attr_value.attribute.name == attribute_group.grouper %}
+                                                <div class="variant-option">
+                                                    <input type="radio" name="attr_{{ attr_value.attribute.id }}" id="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}"
+                                                           value="{{ attr_value.id }}" class="hidden variant-radio" data-attribute="{{ attr_value.attribute.name }}" data-value="{{ attr_value.value }}">
+                                                    <label for="attr_{{ attr_value.attribute.id }}_{{ attr_value.id }}" 
+                                                           class="px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:border-blue-500 variant-label">
+                                                        {{ attr_value.value }}
+                                                    </label>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        
+                        <input type="hidden" name="variant_id" id="selected-variant-id">
+                        
+                        <!-- Selected Variant Details -->
+                        <div id="variant-details" class="mb-6 hidden">
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">Price:</span> 
+                                <span id="variant-price" class="font-bold"></span>
+                                <span id="variant-sale-price" class="ml-2 text-red-600 font-bold hidden"></span>
+                            </p>
+                            <p class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">SKU:</span> 
+                                <span id="variant-sku"></span>
+                            </p>
+                            <p class="text-sm text-gray-700">
+                                <span class="font-semibold">Availability:</span> 
+                                <span id="variant-stock" class=""></span>
+                            </p>
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" id="add-to-cart-btn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow">
+                                Add to Cart
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% else %}
+                    <!-- No variants, simple add to cart -->
+                    <form action="{% url 'cart:add_to_cart' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="product_slug" value="{{ product.slug }}">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        
+                        <!-- Availability -->
+                        <p class="mb-4">
+                            <span class="font-semibold">Availability:</span> 
+                            {% if product.in_stock and product.stock_qty > 0 %}
+                                <span class="text-green-600">In Stock ({{ product.stock_qty }} available)</span>
+                            {% else %}
+                                <span class="text-red-600">Out of Stock</span>
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <label for="quantity" class="block text-gray-700 font-semibold mb-2">Quantity</label>
+                            <div class="flex">
+                                <button type="button" class="quantity-btn minus px-3 py-2 bg-gray-200 rounded-l-md" onclick="decrementQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_qty }}"
+                                       class="flex-grow text-center border-t border-b border-gray-300 py-2">
+                                <button type="button" class="quantity-btn plus px-3 py-2 bg-gray-200 rounded-r-md" onclick="incrementQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Add to Cart / Wishlist -->
+                        <div class="flex space-x-4">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-blue-700 flex-grow"
+                                   {% if not product.in_stock or product.stock_qty <= 0 %}disabled{% endif %}>
+                                {% if product.in_stock and product.stock_qty > 0 %}
+                                    Add to Cart
+                                {% else %}
+                                    Out of Stock
+                                {% endif %}
+                            </button>
+                            
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'accounts:add_to_wishlist' product.id %}?next={{ request.path }}" 
+                                   class="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100">
+                                    <i class="fas fa-heart"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- Product Summary -->
+                <div class="mt-6">
+                    <h3 class="font-semibold text-lg mb-2">About this product</h3>
+                    <div class="text-gray-700">
+                        {{ product.description|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Details / Description Tabs -->
+    <div class="mb-12">
+        <div class="border-b border-gray-300">
+            <ul class="flex flex-wrap -mb-px" id="product-tabs" role="tablist">
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-blue-600 border-b-2 border-blue-600 active"
+                            id="description-tab" data-tabs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">
+                        Description
+                    </button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="attributes-tab" data-tabs-target="#attributes" type="button" role="tab" aria-controls="attributes" aria-selected="false">
+                        Specifications
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="inline-block py-4 px-4 text-lg font-medium text-center text-gray-500 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300"
+                            id="shipping-tab" data-tabs-target="#shipping" type="button" role="tab" aria-controls="shipping" aria-selected="false">
+                        Shipping & Returns
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div id="product-tabs-content">
+            <div class="p-6 bg-white rounded-lg shadow-md tab-panel" id="description" role="tabpanel" aria-labelledby="description-tab">
+                {{ product.description|safe }}
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="attributes" role="tabpanel" aria-labelledby="attributes-tab">
+                <!-- Attributes/Specifications -->
+                <h3 class="text-lg font-semibold mb-4">Product Specifications</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p><span class="font-semibold">SKU:</span> {{ product.sku }}</p>
+                        <p><span class="font-semibold">Category:</span> {{ product.category.name }}</p>
+                        <!-- Add more attributes here as needed -->
+                    </div>
+                </div>
+            </div>
+            <div class="hidden p-6 bg-white rounded-lg shadow-md tab-panel" id="shipping" role="tabpanel" aria-labelledby="shipping-tab">
+                <!-- Shipping & Returns Info -->
+                <h3 class="text-lg font-semibold mb-4">Shipping Information</h3>
+                <p class="mb-4">We ship to all 50 states and most international locations. Standard shipping typically takes 3-5 business days. Expedited shipping options are available at checkout.</p>
+                
+                <h3 class="text-lg font-semibold mb-4">Return Policy</h3>
+                <p>If you're not completely satisfied with your purchase, you may return it within 30 days for a full refund. Items must be in original condition with all packaging and tags.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Products -->
+    {% if related_products %}
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {% for related_product in related_products %}
+                    {%

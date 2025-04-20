@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Search Results for "{{ query }}" | Corrison Store{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'core:index' %}" class="text-gray-700 hover:text-blue-600">
+                    <i class="fas fa-home mr-2"></i>Home
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'products:catalog' %}" class="text-gray-700 hover:text-blue-600">
+                        Products
+                    </a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Search Results</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Search Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-4">Search Results for "{{ query }}"</h1>
+        <p class="text-gray-600">Found {{ result_count }} product{{ result_count|pluralize }} matching your search.</p>
+    </div>
+
+    <!-- Search form -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <form action="{% url 'products:search' %}" method="GET" class="flex flex-col sm:flex-row gap-4">
+            <div class="flex-grow">
+                <input type="text" name="q" value="{{ query }}" placeholder="Search products..." 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+                <i class="fas fa-search mr-2"></i> Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Results -->
+    {% if not products %}
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-semibold mb-2">No products found</h3>
+            <p class="text-gray-600 mb-6">We couldn't find any products matching "{{ query }}".</p>
+            <div class="space-y-4">
+                <p class="text-gray-600">Try:</p>
+                <ul class="list-disc list-inside text-left max-w-md mx-auto text-gray-600">
+                    <li>Checking your spelling</li>
+                    <li>Using more general keywords</li>
+                    <li>Using fewer keywords</li>
+                </ul>
+                <div class="mt-6">
+                    <a href="{% url 'products:catalog' %}" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+                        Browse All Products
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Sort options -->
+        <div class="flex justify-end mb-6">
+            <form action="{% url 'products:search' %}" method="GET" class="flex items-center">
+                <input type="hidden" name="q" value="{{ query }}">
+                <label for="sort" class="mr-2 text-gray-700">Sort by:</label>
+                <select name="sort" id="sort" onchange="this.form.submit()" 
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="newest" {% if request.GET.sort == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="price_low" {% if request.GET.sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if request.GET.sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Name: A to Z</option>
+                    <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Name: Z to A</option>
+                </select>
+            </form>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for product in products %}
+                {% include 'components/product_card.html' with product=product %}
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if products.has_other_pages %}
+            <div class="mt-8 flex justify-center">
+                {% include 'components/pagination.html' with page_obj=products %}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
