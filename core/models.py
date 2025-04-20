@@ -62,3 +62,26 @@ class SEOModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class ContactMessage(UUIDModel, TimestampedModel):
+    """
+    Model for storing contact form messages from users.
+    """
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    subject = models.CharField(max_length=200)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    
+    class Meta:
+        verbose_name = 'Contact Message'
+        verbose_name_plural = 'Contact Messages'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_read']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Message from {self.name} on {self.created_at.strftime('%Y-%m-%d %H:%M')}"

@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}About Us - Corrison Store{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'core:index' %}" class="text-gray-700 hover:text-blue-600">
+                    <i class="fas fa-home mr-2"></i>Home
+                </a>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">About Us</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- About Hero Section -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <div class="flex flex-col md:flex-row items-center">
+            <div class="md:w-1/2 md:pr-8 mb-6 md:mb-0">
+                <h1 class="text-3xl font-bold mb-4">About Corrison</h1>
+                <p class="text-lg text-gray-600 mb-4">
+                    Welcome to Corrison, where quality meets convenience. We are dedicated to providing our customers with the best shopping experience possible, offering high-quality products at competitive prices.
+                </p>
+                <p class="text-gray-600 mb-4">
+                    Founded in 2023, Corrison has quickly grown from a small online store to a trusted destination for shoppers looking for quality products across various categories.
+                </p>
+            </div>
+            <div class="md:w-1/2">
+                <img src="{% static 'images/about-hero.jpg' %}" alt="About Corrison" class="rounded-lg shadow-md w-full h-auto" onerror="this.src='https://via.placeholder.com/600x400?text=About+Corrison'">
+            </div>
+        </div>
+    </div>
+
+    <!-- Our Mission -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Our Mission</h2>
+        <div class="border-l-4 border-blue-600 pl-4 mb-6">
+            <p class="text-xl text-gray-700 italic">
+                "To provide exceptional products and service that enhance our customers' lives while maintaining the highest standards of quality, integrity, and innovation."
+            </p>
+        </div>
+        <p class="text-gray-600 mb-4">
+            At Corrison, we believe that shopping should be enjoyable, convenient, and rewarding. Our mission drives everything we do, from selecting the products we offer to designing our user-friendly website and providing outstanding customer service.
+        </p>
+    </div>
+
+    <!-- Our Values -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-2xl font-bold mb-6">Our Values</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-6 border border-gray-200 rounded-lg hover:border-blue-500 transition-colors duration-300">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-star text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Quality</h3>
+                <p class="text-gray-600">
+                    We never compromise on quality. Every product we offer meets our rigorous standards for excellence and durability.
+                </p>
+            </div>
+            <div class="p-6 border border-gray-200 rounded-lg hover:border-blue-500 transition-colors duration-300">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-handshake text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Integrity</h3>
+                <p class="text-gray-600">
+                    We operate with honesty, transparency, and fairness in all our dealings with customers, employees, and suppliers.
+                </p>
+            </div>
+            <div class="p-6 border border-gray-200 rounded-lg hover:border-blue-500 transition-colors duration-300">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-lightbulb text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Innovation</h3>
+                <p class="text-gray-600">
+                    We constantly seek new ways to improve our products, services, and operations to better serve our customers.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Section -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-2xl font-bold mb-6">Our Team</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Team Member 1 -->
+            <div class="text-center">
+                <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4">
+                    <img src="{% static 'images/team/team1.jpg' %}" alt="Team Member 1" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/128?text=Team+Member'">
+                </div>
+                <h3 class="text-xl font-bold">John Doe</h3>
+                <p class="text-blue-600 mb-2">Founder & CEO</p>
+                <p class="text-gray-600">
+                    With over 15 years of experience in retail and e-commerce, John leads Corrison with passion and vision.
+                </p>
+            </div>
+            
+            <!-- Team Member 2 -->
+            <div class="text-center">
+                <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4">
+                    <img src="{% static 'images/team/team2.jpg' %}" alt="Team Member 2" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/128?text=Team+Member'">
+                </div>
+                <h3 class="text-xl font-bold">Jane Smith</h3>
+                <p class="text-blue-600 mb-2">Head of Product</p>
+                <p class="text-gray-600">
+                    Jane's expertise in product curation ensures that we offer only the best products to our customers.
+                </p>
+            </div>
+            
+            <!-- Team Member 3 -->
+            <div class="text-center">
+                <div class="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4">
+                    <img src="{% static 'images/team/team3.jpg' %}" alt="Team Member 3" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/128?text=Team+Member'">
+                </div>
+                <h3 class="text-xl font-bold">Michael Johnson</h3>
+                <p class="text-blue-600 mb-2">Customer Service Director</p>
+                <p class="text-gray-600">
+                    Michael and his team ensure that every customer interaction with Corrison is positive and helpful.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Why Choose Us -->
+    <div class="bg-white rounded-lg shadow-md p-8">
+        <h2 class="text-2xl font-bold mb-6">Why Choose Corrison?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-check text-blue-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Quality Products</h3>
+                    <p class="text-gray-600">
+                        We carefully select each product in our catalog to ensure it meets our high standards for quality and value.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-start">
+                <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-shipping-fast text-blue-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Fast Shipping</h3>
+                    <p class="text-gray-600">
+                        We offer quick and reliable shipping options to get your products to you as soon as possible.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-start">
+                <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-undo text-blue-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Hassle-Free Returns</h3>
+                    <p class="text-gray-600">
+                        Our 30-day return policy ensures that you can shop with confidence.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-start">
+                <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-headset text-blue-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Outstanding Support</h3>
+                    <p class="text-gray-600">
+                        Our friendly customer service team is always ready to assist you with any questions or concerns.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 text-center">
+            <a href="{% url 'products:catalog' %}" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-700 transition duration-200">
+                Shop Our Products
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

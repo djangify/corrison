@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Contact Us - Corrison Store{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'core:index' %}" class="text-gray-700 hover:text-blue-600">
+                    <i class="fas fa-home mr-2"></i>Home
+                </a>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Contact Us</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Contact Form -->
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <h1 class="text-3xl font-bold mb-6">Get in Touch</h1>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="{% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} p-4 rounded mb-6" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if success %}
+                <div class="bg-green-100 text-green-700 p-4 rounded mb-6">
+                    {{ message }}
+                </div>
+            {% else %}
+                <form method="POST" action="{% url 'core:contact' %}">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="name" class="block text-gray-700 mb-2">Your Name*</label>
+                        <input type="text" id="name" name="name" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="email" class="block text-gray-700 mb-2">Email Address*</label>
+                        <input type="email" id="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="subject" class="block text-gray-700 mb-2">Subject*</label>
+                        <input type="text" id="subject" name="subject" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label for="message" class="block text-gray-700 mb-2">Message*</label>
+                        <textarea id="message" name="message" rows="6" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-semibold hover:bg-blue-700 transition duration-200">
+                            Send Message
+                        </button>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+        
+        <!-- Contact Information -->
+        <div>
+            <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 class="text-2xl font-bold mb-6">Contact Information</h2>
+                
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-map-marker-alt text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold mb-1">Our Address</h3>
+                            <p class="text-gray-600">
+                                123 Commerce Street<br>
+                                Suite 500<br>
+                                New York, NY 10001
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-phone text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold mb-1">Phone</h3>
+                            <p class="text-gray-600">
+                                <a href="tel:+11234567890" class="hover:text-blue-600">(123) 456-7890</a>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-envelope text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold mb-1">Email</h3>
+                            <p class="text-gray-600">
+                                <a href="mailto:info@corrison.com" class="hover:text-blue-600">info@corrison.com</a>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                            <i class="fas fa-clock text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold mb-1">Business Hours</h3>
+                            <p class="text-gray-600">
+                                Monday - Friday: 9:00 AM - 5:00 PM<br>
+                                Saturday: 10:00 AM - 3:00 PM<br>
+                                Sunday: Closed
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Social Media -->
+            <div class="bg-white rounded-lg shadow-md p-8">
+                <h2 class="text-2xl font-bold mb-6">Connect With Us</h2>
+                
+                <div class="flex space-x-4 mb-6">
+                    <a href="#" class="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition duration-200">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="#" class="w-12 h-12 bg-blue-400 text-white rounded-full flex items-center justify-center hover:bg-blue-500 transition duration-200">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    <a href="#" class="w-12 h-12 bg-pink-600 text-white rounded-full flex items-center justify-center hover:bg-pink-700 transition duration-200">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    <a href="#" class="w-12 h-12 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition duration-200">
+                        <i class="fab fa-youtube"></i>
+                    </a>
+                </div>
+                
+                <p class="text-gray-600">
+                    Follow us on social media to stay updated with our latest products, promotions, and announcements.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Map Section -->
+    <div class="bg-white rounded-lg shadow-md p-8 mt-8">
+        <h2 class="text-2xl font-bold mb-6">Our Location</h2>
+        <div class="w-full h-96 bg-gray-200 rounded-lg">
+            <!-- Replace with actual map when implementing -->
+            <div class="w-full h-full flex items-center justify-center text-gray-500">
+                <span>Interactive Map Will Be Displayed Here</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

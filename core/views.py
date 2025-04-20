@@ -1,10 +1,15 @@
 # core/views.py
 from django.shortcuts import render
 from django.views.generic import TemplateView
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+
 from products.services.catalog import CatalogService
 from theme.models import Banner
 from blog.models import Post
 from django.utils import timezone
+from .models import ContactMessage
 
 
 def index(request):
@@ -45,32 +50,78 @@ def about(request):
     """
     About page view.
     """
-    return render(request, 'core/about.html')
+    context = {
+        'page_title': 'About Us',
+        'breadcrumbs': [
+            {'title': 'Home', 'url': '/'},
+            {'title': 'About Us'}
+        ]
+    }
+    return render(request, 'core/about.html', context)
 
 
 def contact(request):
     """
-    Contact page view.
+    Contact page view with form processing.
     """
+    context = {
+        'page_title': 'Contact Us',
+        'breadcrumbs': [
+            {'title': 'Home', 'url': '/'},
+            {'title': 'Contact Us'}
+        ]
+    }
+    
     if request.method == 'POST':
-        # Process the contact form (send email, save to database, etc.)
-        # This is just a placeholder - implement according to your needs
+        # Process the contact form
         name = request.POST.get('name')
         email = request.POST.get('email')
         subject = request.POST.get('subject')
-        message = request.POST.get('message')
+        message_content = request.POST.get('message')
         
-        # Here you would typically send an email or save to database
-        # For example, you could use Django's send_mail function
+        # Store the message in the database
+        contact_message = ContactMessage.objects.create(
+            name=name,
+            email=email,
+            subject=subject,
+            message=message_content
+        )
         
-        context = {
-            'success': True,
-            'message': 'Your message has been sent. We will get back to you soon.'
-        }
+        # Optionally send notification email to admin
+        try:
+            admin_email = settings.DEFAULT_FROM_EMAIL
+            email_subject = f"New Contact Message: {subject}"
+            email_message = f"""
+You have received a new contact message from {name} ({email}):
+
+Subject: {subject}
+
+Message:
+{message_content}
+
+---
+This message was sent from the contact form on your website.
+            """
+            
+            send_mail(
+                email_subject,
+                email_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [admin_email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log the error but don't show it to the user
+            print(f"Error sending email notification: {str(e)}")
         
-        return render(request, 'core/contact.html', context)
+        # Show success message to the user
+        messages.success(request, "Thank you for your message! We'll get back to you as soon as possible.")
+        
+        # Add success status to context
+        context['success'] = True
+        context['message'] = "Thank you for your message! We'll get back to you as soon as possible."
     
-    return render(request, 'core/contact.html')
+    return render(request, 'core/contact.html', context)
 
 
 def faq(request):

@@ -40,13 +40,12 @@
                 <!-- Navigation -->
                 <nav class="flex items-center space-x-6">
                     <a href="{% url 'products:catalog' %}" class="hidden md:inline-block hover:text-blue-600">Shop</a>
-                    <a href="{% url 'core:about' %}" class="hidden md:inline-block hover:text-blue-600">About</a>
-                    <a href="{% url 'core:contact' %}" class="hidden md:inline-block hover:text-blue-600">Contact</a>
+                    
                     
                     <!-- User Account -->
                     <div class="relative group">
                         <button class="flex items-center hover:text-blue-600">
-                            <i class="fas fa-user mr-1"></i>
+                            <i class="fas fa-user mr-4"></i>
                             <span class="hidden md:inline">Account</span>
                         </button>
                         <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
@@ -64,7 +63,7 @@
                     
                     <!-- Cart -->
                     <a href="{% url 'cart:cart' %}" class="flex items-center hover:text-blue-600">
-                        <i class="fas fa-shopping-cart mr-1"></i>
+                        <i class="fas fa-shopping-cart mr-4"></i>
                         <span class="hidden md:inline">Cart</span>
                         <span class="ml-1 bg-blue-600 text-white text-xs rounded-full px-2 py-1">0</span>
                     </a>
@@ -92,8 +91,7 @@
             <div class="container mx-auto px-4 py-3">
                 <nav class="flex flex-col space-y-3">
                     <a href="{% url 'products:catalog' %}" class="py-2 hover:text-blue-600">Shop</a>
-                    <a href="{% url 'core:about' %}" class="py-2 hover:text-blue-600">About</a>
-                    <a href="{% url 'core:contact' %}" class="py-2 hover:text-blue-600">Contact</a>
+                    
                 </nav>
             </div>
         </div>
@@ -159,7 +157,7 @@
                         <li><a href="{% url 'core:about' %}" class="hover:text-blue-400">About Us</a></li>
                         <li><a href="{% url 'core:privacy_policy' %}" class="hover:text-blue-400">Privacy Policy</a></li>
                         <li><a href="{% url 'core:terms_conditions' %}" class="hover:text-blue-400">Terms & Conditions</a></li>
-                        <li><a href="#" class="hover:text-blue-400">Blog</a></li>
+                        <li><a href="{% url 'blog:list' %}" class="hover:text-blue-400">Blog</a></li>
                     </ul>
                 </div>
             </div>
