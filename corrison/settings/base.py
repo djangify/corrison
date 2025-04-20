@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'widget_tweaks',
     'tinymce',
+    
     # Local apps
     'accounts',
     'products',
