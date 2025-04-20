@@ -1,0 +1,56 @@
+<!-- Mini Cart Dropdown Content -->
+<div class="mini-cart bg-white rounded-lg shadow-lg w-72 max-h-96 overflow-y-auto">
+  <div class="p-4 border-b border-gray-200">
+      <h3 class="font-bold text-lg">Your Cart ({{ item_count }})</h3>
+  </div>
+  
+  {% if items|length == 0 %}
+      <div class="p-4 text-center">
+          <p class="text-gray-600">Your cart is empty</p>
+          <a href="{% url 'products:catalog' %}" class="mt-2 inline-block text-blue-600 hover:text-blue-800">
+              Start Shopping
+          </a>
+      </div>
+  {% else %}
+      <div class="divide-y divide-gray-200">
+          {% for item in items %}
+              <div class="p-4 flex">
+                  <div class="w-16 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden mr-3">
+                      {% if item.product.main_image %}
+                          <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover">
+                      {% else %}
+                          <div class="w-full h-full flex items-center justify-center text-gray-500">
+                              <i class="fas fa-image"></i>
+                          </div>
+                      {% endif %}
+                  </div>
+                  <div class="flex-grow">
+                      <h4 class="font-semibold text-sm truncate">{{ item.product.name }}</h4>
+                      {% if item.variant %}
+                          <p class="text-xs text-gray-600">{{ item.variant }}</p>
+                      {% endif %}
+                      <div class="flex justify-between mt-1 text-sm">
+                          <span class="text-gray-600">{{ item.quantity }} × ${{ item.unit_price }}</span>
+                          <span class="font-semibold">${{ item.total_price }}</span>
+                      </div>
+                  </div>
+              </div>
+          {% endfor %}
+      </div>
+      
+      <div class="p-4 border-t border-gray-200">
+          <div class="flex justify-between mb-2">
+              <span class="font-semibold">Subtotal</span>
+              <span class="font-bold">${{ subtotal }}</span>
+          </div>
+          <div class="space-y-2">
+              <a href="{% url 'cart:cart' %}" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 text-center py-2 rounded transition duration-200">
+                  View Cart
+              </a>
+              <a href="{% url 'checkout:checkout' %}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded transition duration-200">
+                  Checkout
+              </a>
+          </div>
+      </div>
+  {% endif %}
+</div>

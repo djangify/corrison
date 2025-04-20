@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment - Corrison Store{% endblock %}
+
+{% block extra_css %}
+<style>
+    #payment-form {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    #payment-element {
+        margin-bottom: 24px;
+    }
+    #payment-message {
+        color: rgb(105, 115, 134);
+        font-size: 16px;
+        line-height: 20px;
+        padding-top: 12px;
+        text-align: center;
+    }
+    #payment-form button:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+    .spinner {
+        color: #ffffff;
+        font-size: 22px;
+        text-indent: -99999px;
+        margin: 0px auto;
+        position: relative;
+        width: 20px;
+        height: 20px;
+        box-shadow: inset 0 0 0 2px;
+        -webkit-transform: translateZ(0);
+        -ms-transform: translateZ(0);
+        transform: translateZ(0);
+        border-radius: 50%;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .spinner:before,
+    .spinner:after {
+        position: absolute;
+        content: '';
+        background: #4F46E5;
+    }
+    .spinner:before {
+        width: 10.4px;
+        height: 20.4px;
+        border-radius: 20.4px 0 0 20.4px;
+        top: -0.2px;
+        left: -0.2px;
+        -webkit-transform-origin: 10.4px 10.2px;
+        transform-origin: 10.4px 10.2px;
+        -webkit-animation: loading 2s infinite ease 1.5s;
+        animation: loading 2s infinite ease 1.5s;
+    }
+    .spinner:after {
+        width: 10.4px;
+        height: 10.2px;
+        border-radius: 0 10.2px 10.2px 0;
+        top: -0.1px;
+        left: 10.2px;
+        -webkit-transform-origin: 0px 10.2px;
+        transform-origin: 0px 10.2px;
+        -webkit-animation: loading 2s infinite ease;
+        animation: loading 2s infinite ease;
+    }
+    @-webkit-keyframes loading {
+        0% {
+            -webkit-transform: rotate(0deg);
+            transform: rotate(0deg);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+        }
+    }
+    @keyframes loading {
+        0% {
+            -webkit-transform: rotate(0deg);
+            transform: rotate(0deg);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold">Payment</h1>
+        {% include 'components/breadcrumbs.html' with items=breadcrumbs %}
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Payment Form (Left Side) -->
+        <div class="lg:col-span-8">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold mb-6">Complete Your Payment</h2>
+                
+                <form id="payment-form" class="space-y-6">
+                    <div id="payment-element">
+                        <!-- Stripe.js will insert the Payment Element here -->
+                    </div>
+                    <div id="payment-message" class="hidden"></div>
+                    
+                    <button id="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded font-semibold hover:bg-blue-700 transition duration-200">
+                        <div class="spinner hidden" id="spinner"></div>
+                        <span id="button-text">Pay Now</span>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-start">
+                    <div class="mr-3 text-blue-500">
+                        <i class="fas fa-info-circle text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-blue-800 mb-1">Secure Payment</h3>
+                        <p class="text-blue-700 text-sm">
+                            Your payment information is encrypted and securely processed. We do not store your card details.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Summary (Right Side) -->
+        <div class="lg:col-span-4">
+            <div class="bg-white rounded-lg shadow-md p-6 sticky top-6">
+                <h2 class="text-xl font-bold mb-4">Order Summary</h2>
+                
+                <div class="mb-4">
+                    <p class="font-semibold text-gray-700">Order #{{ order.order_number }}</p>
+                </div>
+                
+                <div class="max-h-64 overflow-y-auto mb-4">
+                    {% for item in order.items.all %}
+                        <div class="flex py-4 {% if not forloop.last %}border-b border-gray-200{% endif %}">
+                            <div class="w-16 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden mr-4">
+                                {% if item.product.main_image %}
+                                    <img src="{{ item.product.main_image.url }}" alt="{{ item.product_name }}" class="w-full h-full object-cover">
+                                {% else %}
+                                    <div class="w-full h-full flex items-center justify-center text-gray-500">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="font-semibold">{{ item.product_name }}</h3>
+                                {% if item.variant_name %}
+                                    <p class="text-sm text-gray-600">{{ item.variant_name }}</p>
+                                {% endif %}
+                                <div class="flex justify-between mt-1">
+                                    <span class="text-gray-600">Qty: {{ item.quantity }}</span>
+                                    <span class="font-semibold">${{ item.total_price }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="border-t border-gray-200 pt-4 space-y-2">
+                    <div class="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>${{ order.subtotal }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Shipping</span>
+                        <span>${{ order.shipping_cost }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Tax</span>
+                        <span>${{ order.tax_amount }}</span>
+                    </div>
+                    {% if order.discount_amount > 0 %}
+                    <div class="flex justify-between text-green-600">
+                        <span>Discount</span>
+                        <span>-${{ order.discount_amount }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between font-bold text-lg pt-2 border-t border-gray-200">
+                        <span>Total</span>
+                        <span>${{ order.total }}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-6 space-y-4">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-lock mr-2"></i>
+                        <span>Secure checkout powered by Stripe</span>
+                    </div>
+                    <div class="flex items-center justify-center space-x-2">
+                        <i class="fab fa-cc-visa text-blue-700 text-2xl"></i>
+                        <i class="fab fa-cc-mastercard text-red-500 text-2xl"></i>
+                        <i class="fab fa-cc-amex text-blue-500 text-2xl"></i>
+                        <i class="fab fa-cc-discover text-orange-500 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    // This is your test publishable API key.
+    const stripe = Stripe("{{ stripe_publishable_key }}");
+
+    let elements;
+    let emailAddress = '{{ order.get_customer_email }}';
+
+    initialize();
+
+    document
+        .querySelector("#payment-form")
+        .addEventListener("submit", handleSubmit);
+
+    async function initialize() {
+        const clientSecret = "{{ client_secret }}";
+        
+        elements = stripe.elements({ clientSecret });
+
+        const paymentElement = elements.create("payment");
+        paymentElement.mount("#payment-element");
+    }
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        setLoading(true);
+
+        const { error } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                // Make sure to change this to your payment completion page
+                return_url: "{{ request.scheme }}://{{ request.get_host }}{% url 'checkout:payment_success' %}",
+                receipt_email: emailAddress,
+            },
+        });
+
+        // This point will only be reached if there is an immediate error when
+        // confirming the payment. Otherwise, your customer will be redirected to
+        // your `return_url`. For some payment methods like iDEAL, your customer will
+        // be redirected to an intermediate site first to authorize the payment, then
+        // redirected to the `return_url`.
+        if (error.type === "card_error" || error.type === "validation_error") {
+            showMessage(error.message);
+        } else {
+            showMessage("An unexpected error occurred.");
+        }
+
+        setLoading(false);
+    }
+
+    // ------- UI helpers -------
+
+    function showMessage(messageText) {
+        const messageContainer = document.querySelector("#payment-message");
+
+        messageContainer.classList.remove("hidden");
+        messageContainer.textContent = messageText;
+
+        setTimeout(function () {
+            messageContainer.classList.add("hidden");
+            messageContainer.textContent = "";
+        }, 4000);
+    }
+
+    // Show a spinner on payment submission
+    function setLoading(isLoading) {
+        if (isLoading) {
+            // Disable the button and show a spinner
+            document.querySelector("#submit").disabled = true;
+            document.querySelector("#spinner").classList.remove("hidden");
+            document.querySelector("#button-text").classList.add("hidden");
+        } else {
+            document.querySelector("#submit").disabled = false;
+            document.querySelector("#spinner").classList.add("hidden");
+            document.querySelector("#button-text").classList.remove("hidden");
+        }
+    }
+</script>
+{% endblock %}
