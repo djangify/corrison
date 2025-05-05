@@ -1,5 +1,11 @@
 from django.contrib import admin
 from .models import ContactMessage
+from .models import AllowedOrigin
+
+@admin.register(AllowedOrigin)
+class AllowedOriginAdmin(admin.ModelAdmin):
+    list_display = ('origin', 'note')
+
 
 @admin.register(ContactMessage)
 class ContactMessageAdmin(admin.ModelAdmin):

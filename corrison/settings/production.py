@@ -9,7 +9,7 @@ from .base import *
 environ.Env.read_env(os.path.join(BASE_DIR, '.env.production'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # Read ALLOWED_HOSTS from environment or site_settings
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
@@ -19,13 +19,8 @@ CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
 CSRF_TRUSTED_ORIGINS += [f"http://{host}" for host in ALLOWED_HOSTS]
 
 # CORS origins from env
-CORS_ALLOWED_ORIGINS = env.list(
-    'CORS_ALLOWED_ORIGINS',
-    default=[
-        'https://todiane.dev',
-
-    ]
-)
+CORS_ALLOWED_ORIGINS = []       # use signal not static list
+CORS_ALLOW_ALL_ORIGINS = False  
 
 # Database settings for production
 import pymysql
