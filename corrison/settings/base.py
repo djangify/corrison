@@ -4,6 +4,7 @@ Base settings for the Corrison project.
 from pathlib import Path
 import os
 import environ
+from datetime import timedelta
 
 # Initialize environment variables
 env = environ.Env()
@@ -31,6 +32,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt',
+    'drf_yasg',
     'accounts',
     'api',
     'checkout',
@@ -44,6 +47,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -120,11 +124,19 @@ SESSION_COOKIE_AGE = 86400 * 30  # 30 days
 SESSION_SAVE_EVERY_REQUEST = True
 
 
+# REST framework & JWT configuration
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
+    'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    ],
+    ),
+}
+
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
