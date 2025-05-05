@@ -1,5 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from blog.views import BlogPostViewSet
 from .views import (
     ProductViewSet,
     AddressViewSet,
@@ -14,6 +15,7 @@ router.register(r'addresses', AddressViewSet, basename='address')
 router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'users', UserViewSet, basename='user')
+router.register(r'blog/posts', BlogPostViewSet, basename='blogpost')
 
 urlpatterns = [
     path('', include(router.urls)),

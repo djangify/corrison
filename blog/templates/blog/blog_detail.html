@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}{{ post.title }}{% endblock %}
+{% block content %}
+
+<article class="bg-white p-8 rounded shadow mb-8">
+  <h1 class="text-3xl font-bold mb-4">{{ post.title }}</h1>
+  <p class="text-sm text-gray-500 mb-6">Published {{ post.created_at|date:"F j, Y" }}</p>
+
+  {% if post.youtube_url %}
+    <div class="mb-6">
+      <iframe
+        class="w-full h-64 md:h-96 rounded"
+        src="{{ post.youtube_url }}"
+        allowfullscreen
+      ></iframe>
+    </div>
+  {% elif post.featured_image %}
+    <img src="{{ post.featured_image.url }}" class="w-full h-64 object-cover rounded mb-6">
+  {% endif %}
+
+  <div class="prose max-w-none mb-6">{{ post.content|safe }}</div>
+
+  {% if post.attachment %}
+    <div class="mb-8">
+      <a
+        href="{{ post.attachment.url }}"
+        class="inline-block bg-blue-500 text-white px-4 py-2 rounded"
+        download
+      >
+        Download Attachment
+      </a>
+    </div>
+  {% endif %}
+</article>
+<!-- Social Sharing & Comments -->
+<div class="flex space-x-4 mb-8">
+  <a href="https://twitter.com/share?url={{ request.build_absolute_uri }}" class="underline">Share on Twitter</a>
+  <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" class="underline">Share on Facebook</a>
+</div>
+<div class="bg-white p-6 rounded shadow">
+  <h2 class="text-2xl font-semibold mb-4">Comments</h2>
+  {% load comments %}
+  {% render_comment_list for post %}
+  {% render_comment_form for post %}
+</div>
+{% endblock %}
