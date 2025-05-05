@@ -35,7 +35,7 @@ Copy `.env.example` to `.env` and update:
 ```ini
 SECRET_KEY=your-secret-key
 DEBUG=False
-ALLOWED_HOSTS=localhost,ecommerce.djangify.com,juicecleanseme.com,inspirationalguidance.com
+ALLOWED_HOSTS=localhost,corrison.djangify.com,
 DATABASE_URL=postgres://user:pass@localhost:5432/corrison
 ```
 
@@ -99,7 +99,7 @@ All endpoints are under `/api/v1/` and follow REST conventions.
 
 ## Deployment
 
-* Hosted on cPanel via `ecommerce.djangify.com`
+* Hosted on cPanel via `corrison.djangify.com`
 * SSL & env vars via cPanel dashboard.
 * CI via GitHub Actions: lint, test, build migrations.
 

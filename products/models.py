@@ -2,9 +2,8 @@ from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from core.models import TimestampedModel, SluggedModel, PublishableModel, SEOModel, UUIDModel
-from tinymce.models import HTMLField
 from django.conf import settings
-
+from django.db import models
 
 class Category(SluggedModel, TimestampedModel, PublishableModel, SEOModel):
     """
@@ -65,7 +64,7 @@ class Product(SluggedModel, TimestampedModel, PublishableModel, SEOModel):
         on_delete=models.CASCADE
     )
     sku = models.CharField(max_length=100, unique=True)
-    description = HTMLField()
+    description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(
         max_digits=10, decimal_places=2, 

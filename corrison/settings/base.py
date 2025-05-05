@@ -7,12 +7,18 @@ import environ
 
 # Initialize environment variables
 env = environ.Env()
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-# This sets BASE_DIR to the corrison project root
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# Try to load environment, but don't fail if file doesn't exist
+try:
+    environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+except Exception:
+    pass
+SECRET_KEY = env('SECRET_KEY')
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# IMPORTANT: Load .env.production file directly in base.py
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+# SECRET_KEY
 SECRET_KEY = env('SECRET_KEY')
 
 # Application definition
@@ -29,8 +35,6 @@ INSTALLED_APPS = [
     'checkout',
     'core',
     'products',
-    'tinymce',
-    
 ]
 
 MIDDLEWARE = [
