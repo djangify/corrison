@@ -6,3 +6,4 @@ django-environ
 PyJWT
 Pillow
 pymysql
+django-tiny-mce

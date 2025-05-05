@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'checkout',
     'core',
     'products',
+    'tinymce',
     
 ]
 
