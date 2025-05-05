@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'products',
     'blog',
     'pages',
+    'linkhub',
 ]
 
 MIDDLEWARE = [

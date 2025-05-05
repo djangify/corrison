@@ -1,6 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from blog.views import BlogPostViewSet
+from linkhub.views import LinkHubViewSet
 from pages.views import PageViewSet
 from .views import (
     ProductViewSet,
@@ -18,6 +19,7 @@ router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'blog/posts', BlogPostViewSet, basename='blogpost')
 router.register(r'pages', PageViewSet, basename='page')
+router.register(r'linkhubs', LinkHubViewSet, basename='linkhub')
 
 urlpatterns = [
     path('', include(router.urls)),
