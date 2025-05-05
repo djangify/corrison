@@ -19,16 +19,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
-# Database settings for local development
-# This uses SQLite by default for simplicity
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 
-# Uncomment to use MySQL/MariaDB locally
 import pymysql
 pymysql.install_as_MySQLdb()
 DATABASES = {
@@ -49,15 +40,6 @@ DATABASES = {
 # Email settings for development (writes to console)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-# Stripe settings for development
-STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='pk_test_placeholder')
-STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='sk_test_placeholder')
-STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='whsec_placeholder')
-
-# Debug toolbar settings
-# INSTALLED_APPS += ['debug_toolbar']
-# MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
-# INTERNAL_IPS = ['127.0.0.1']
 
 # Load site-specific settings
 try:
