@@ -20,8 +20,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('api.urls')),
     path('', TemplateView.as_view(template_name='index.html'), name='home'),
-    # versioned API
-    path('api/v1/', include('api.urls')),
     # Swagger/OpenAPI docs
     path('api/v1/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('static/<path:path>', serve, {

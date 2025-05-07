@@ -1,18 +1,18 @@
+from django.contrib.auth import get_user_model
+
 from rest_framework import viewsets, filters
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
+
+from products.models import Product
+from checkout.models import Address, Order, Payment
+
 from .serializers import (
     ProductSerializer,
     AddressSerializer,
     OrderSerializer,
     PaymentSerializer,
-    IsAuthenticated, 
-    IsAuthenticatedOrReadOnly, 
-    AllowAny,
+    UserCreateUpdateSerializer,
 )
-from products.models import Product
-from checkout.models import Address, Order, OrderItem, Payment
-from django.contrib.auth import get_user_model
-from .serializers import UserCreateUpdateSerializer
 
 User = get_user_model()
 
