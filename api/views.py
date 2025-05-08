@@ -1,13 +1,11 @@
 from django.contrib.auth import get_user_model
-
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
-
 from products.models import Product
 from checkout.models import Address, Order, Payment
-
+from products.serializers import ProductSerializer
 from .serializers import (
-    ProductSerializer,
+    
     AddressSerializer,
     OrderSerializer,
     PaymentSerializer,

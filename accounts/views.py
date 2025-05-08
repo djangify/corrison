@@ -9,7 +9,9 @@ from .models import Profile, WishlistItem
 from products.models import Product
 from django.core.paginator import Paginator
 from checkout.models import Order
-
+from .models import WishlistItem
+from .serializers import WishlistItemSerializer
+from rest_framework import viewsets
 
 def register(request):
     """
@@ -250,3 +252,10 @@ def remove_from_wishlist(request, item_id):
     
     # Redirect back to wishlist
     return redirect('accounts:wishlist')
+
+
+class WishlistViewSet(viewsets.ModelViewSet):
+    serializer_class = WishlistItemSerializer
+    
+    def get_queryset(self):
+        return WishlistItem.objects.filter(user=self.request.user)

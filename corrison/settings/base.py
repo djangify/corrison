@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'api',
     'checkout',
     'core',
+    'cart',
     'products',
     'blog',
     'pages',
@@ -123,6 +124,11 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_COOKIE_AGE = 86400 * 30  # 30 days
 SESSION_SAVE_EVERY_REQUEST = True
 
+
+# Stripe settings
+STRIPE_PUBLISHABLE_KEY = env('STRIPE_PUBLISHABLE_KEY', default='pk_test_placeholder')
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='sk_test_placeholder')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='whsec_placeholder')
 
 # REST framework & JWT configuration
 REST_FRAMEWORK = {
