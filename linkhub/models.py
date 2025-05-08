@@ -6,6 +6,10 @@ class LinkHub(models.Model):
     title         = models.CharField(max_length=200)
     description   = models.TextField(blank=True)
     created_at    = models.DateTimeField(auto_now_add=True)
+    order         = models.PositiveIntegerField(
+        default=0,
+        help_text="Lower numbers appear first"
+    )
     # Publication controls:
     is_published  = models.BooleanField(
         default=False,
@@ -17,7 +21,7 @@ class LinkHub(models.Model):
     )
 
     class Meta:
-        ordering = ['-published_at', '-created_at']
+        ordering = ['order', '-published_at', '-created_at']
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -28,11 +32,38 @@ class LinkHub(models.Model):
         return self.title
 
 class Link(models.Model):
-    page     = models.ForeignKey(LinkHub, related_name='links', on_delete=models.CASCADE)
-    title    = models.CharField(max_length=100)
-    url      = models.URLField()
-    icon_url = models.URLField(blank=True, help_text="Optional icon or avatar")
-    order    = models.PositiveIntegerField(default=0)
+    """Enhanced Link model that supports different media types"""
+    MEDIA_TYPES = (
+        ('link', 'Standard Link'),
+        ('video', 'Video'),
+        ('pdf', 'PDF Document'),
+        ('audio', 'Audio/Podcast'),
+        ('image', 'Image'),
+    )
+    
+    page          = models.ForeignKey(LinkHub, related_name='links', on_delete=models.CASCADE)
+    title         = models.CharField(max_length=100)
+    url           = models.URLField()
+    media_type    = models.CharField(
+        max_length=10, 
+        choices=MEDIA_TYPES,
+        default='link',
+        help_text="Type of media this link represents"
+    )
+    icon_url      = models.URLField(
+        blank=True, 
+        help_text="Optional icon, thumbnail or preview image"
+    )
+    description   = models.TextField(
+        blank=True, 
+        help_text="Short description of this link or media item"
+    )
+    author        = models.CharField(
+        max_length=100, 
+        blank=True,
+        help_text="Creator or author of this content (optional)"
+    )
+    order         = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['order']

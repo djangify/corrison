@@ -20,6 +20,15 @@ class Page(models.Model):
     created_at       = models.DateTimeField(auto_now_add=True)
     updated_at       = models.DateTimeField(auto_now=True)
 
+    hero_title = models.CharField(max_length=200, blank=True)
+    hero_subtitle = models.CharField(max_length=300, blank=True)
+    hero_image = models.ImageField(upload_to="pages/hero/", blank=True, null=True)
+    hero_content = models.TextField(blank=True, help_text="Rich text for hero section")
+    
+    # For features/how it works sections
+    has_feature_section = models.BooleanField(default=False)
+    feature_section_title = models.CharField(max_length=200, blank=True)
+
     class Meta:
         ordering = ['order', '-updated_at']
 
@@ -30,3 +39,13 @@ class Page(models.Model):
 
     def __str__(self):
         return self.title
+
+class PageFeature(models.Model):
+    page = models.ForeignKey(Page, related_name='features', on_delete=models.CASCADE)
+    title = models.CharField(max_length=100, blank=True)
+    content = models.TextField()
+    icon = models.CharField(max_length=100, blank=True, help_text="Icon name or class")
+    order = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order']

@@ -17,7 +17,7 @@ router.register(r'addresses', AddressViewSet, basename='address')
 router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'users', UserViewSet, basename='user')
-router.register(r'blog/posts', BlogPostViewSet, basename='blogpost')
+router.register(r'blog/posts', BlogPostViewSet, basename='blog')
 router.register(r'pages', PageViewSet, basename='page')
 router.register(r'linkhubs', LinkHubViewSet, basename='linkhub')
 
