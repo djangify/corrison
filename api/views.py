@@ -16,17 +16,24 @@ from .serializers import (
 
 User = get_user_model()
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Public catalog: list & retrieve for anonymous users;
-    full CRUD for authenticated users.
+    API endpoint for products.
+    Allows GET requests to list and retrieve products.
+    Uses slug for lookups.
     """
-    queryset = Product.objects.all()
+    queryset = Product.objects.filter(is_active=True)
     serializer_class = ProductSerializer
+    lookup_field = 'slug'
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name', 'description']
-    ordering_fields = ['price', 'inventory']
+    search_fields = ['name', 'description', 'category__name']
+    ordering_fields = ['name', 'price', 'created_at']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Add prefetching to reduce DB queries
+        return queryset.select_related('category').prefetch_related('images', 'variants')
 
 class CategoryViewSet(ReadOnlyModelViewSet):
     """
@@ -91,3 +98,4 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # even for list/retrieve, lock down to yourself
         return User.objects.filter(id=self.request.user.id)
+

@@ -9,12 +9,13 @@ from rest_framework import status
 from products.models import Product, ProductVariant
 from django.shortcuts import get_object_or_404
 from cart.models import Cart, CartItem
-
+from rest_framework.permissions import AllowAny
 
 
 class CartViewSet(viewsets.GenericViewSet):
     serializer_class = CartSerializer
     
+    # Modify the get_cart method in CartViewSet in cart/views.py
     def get_cart(self, request):
         """
         Get or create a cart for the current session or user.
@@ -41,7 +42,9 @@ class CartViewSet(viewsets.GenericViewSet):
             if not session_key:
                 request.session.create()
                 session_key = request.session.session_key
-                
+                # Ensure session is saved
+                request.session.modified = True
+                    
             # Check for session cart
             cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
         
@@ -51,9 +54,11 @@ class CartViewSet(viewsets.GenericViewSet):
                 user=user,
                 session_key=None if user else session_key
             )
-            
+            # Make sure changes are saved
+            request.session.modified = True
+                
         return cart
-    
+        
     def list(self, request):
         """
         Get the current cart.
@@ -74,6 +79,7 @@ class CartViewSet(viewsets.GenericViewSet):
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
+    permission_classes = [AllowAny]
     serializer_class = CartItemSerializer
     
     def get_queryset(self):
