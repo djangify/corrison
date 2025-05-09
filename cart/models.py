@@ -95,20 +95,6 @@ class CartItem(UUIDModel, TimestampedModel):
             return f"{self.quantity} x {self.product.name} ({self.variant})"
         return f"{self.quantity} x {self.product.name}"
     
-    @property
-    def subtotal(self):
-        """
-        Calculate cart subtotal.
-        """
-        return sum(item.total_price for item in self.items.all())
-
-    @property
-    def total_items(self):
-        """
-        Get total number of items in cart.
-        """
-        return self.items.count()
-
     # Inside the CartItem model in models.py
     @property
     def unit_price(self):

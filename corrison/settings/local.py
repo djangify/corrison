@@ -20,7 +20,12 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
-
+# Allow requests from your frontend domain
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://ecommerce.todiane.com",
+    # Add any other domains you need
+]
 
 pymysql.install_as_MySQLdb()
 DATABASES = {

@@ -22,6 +22,9 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # SECRET_KEY
 SECRET_KEY = env('SECRET_KEY')
 
+# Allow credentials (cookies, authorization headers)
+CORS_ALLOW_CREDENTIALS = True
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.staticfiles',
