@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
-from products.models import Product
+from products.models import Product, Category
+from rest_framework.viewsets import ReadOnlyModelViewSet
 from checkout.models import Address, Order, Payment
 from products.serializers import ProductSerializer
 from .serializers import (
@@ -10,6 +11,7 @@ from .serializers import (
     OrderSerializer,
     PaymentSerializer,
     UserCreateUpdateSerializer,
+    CategorySerializer,
 )
 
 User = get_user_model()
@@ -25,6 +27,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'description']
     ordering_fields = ['price', 'inventory']
+
+class CategoryViewSet(ReadOnlyModelViewSet):
+    """
+    A viewset for viewing categories.
+    """
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
 
 class AddressViewSet(viewsets.ModelViewSet):
     """

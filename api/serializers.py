@@ -3,6 +3,8 @@ from checkout.models import Address, Order, OrderItem, Payment
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 
+from products.models import Category
+
 User = get_user_model()
 
 
@@ -111,3 +113,8 @@ class UserCreateUpdateSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('id', 'name', 'slug', 'description', 'image')

@@ -7,6 +7,7 @@ from cart.views import CartViewSet, CartItemViewSet
 from accounts.views import WishlistViewSet
 from .views import (
     ProductViewSet,
+    CategoryViewSet,
     AddressViewSet,
     OrderViewSet,
     PaymentViewSet,
@@ -16,6 +17,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'wishlist', WishlistViewSet, basename='wishlist')
 router.register(r'products', ProductViewSet, basename='product')
+router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'addresses', AddressViewSet, basename='address')
 router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'payments', PaymentViewSet, basename='payment')
