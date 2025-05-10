@@ -1,3 +1,14 @@
+# api/views.py
+from django.contrib.auth import get_user_model
+from rest_framework import viewsets, filters, status
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from django.http import HttpResponse
+from PIL import Image
+from io import BytesIO
+import stripe
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
@@ -99,3 +110,36 @@ class UserViewSet(viewsets.ModelViewSet):
         # even for list/retrieve, lock down to yourself
         return User.objects.filter(id=self.request.user.id)
 
+# In api/views.py
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(['POST'])
+def add_to_cart(request):
+    # Handle adding items to cart
+    pass
+
+@api_view(['PUT'])
+def update_cart_item(request):
+    # Handle updating cart item quantity
+    pass
+
+@api_view(['DELETE'])
+def remove_cart_item(request):
+    # Handle removing items from cart
+    pass
+
+@api_view(['POST'])
+def create_payment_intent(request):
+    # Handle Stripe payment intent creation
+    pass
+
+@api_view(['POST'])
+def create_order(request):
+    # Handle order creation
+    pass
+
+@api_view(['GET'])
+def placeholder_image(request, width, height):
+    # Generate placeholder images
+    pass    

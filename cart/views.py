@@ -22,7 +22,7 @@ class CartViewSet(viewsets.GenericViewSet):
         """
         user = request.user if request.user.is_authenticated else None
         session_key = request.session.session_key
-        
+        print(f"Session key: {session_key}, User: {user}")
         # Try to get an existing cart
         if user:
             # Check for user cart
@@ -117,6 +117,8 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 )
         else:
             if not product.in_stock or product.stock_qty < quantity:
+                # For testing, add a log statement to see the values
+                print(f"Product: {product.name}, in_stock: {product.in_stock}, stock_qty: {product.stock_qty}, requested: {quantity}")
                 return Response(
                     {'error': 'Not enough stock available'}, 
                     status=status.HTTP_400_BAD_REQUEST
@@ -166,3 +168,18 @@ class CartItemViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(cart_item)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], url_path='add')
+    def add_to_cart(self, request):
+        # Implementation for /api/v1/items/add/
+        pass
+    
+    @action(detail=True, methods=['put'], url_path='update')
+    def update_item(self, request, pk=None):
+        # Implementation for /api/v1/items/{id}/update/
+        pass
+    
+    @action(detail=True, methods=['delete'], url_path='remove')
+    def remove_item(self, request, pk=None):
+        # Implementation for /api/v1/items/{id}/remove/
+        pass
