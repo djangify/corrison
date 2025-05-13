@@ -9,7 +9,7 @@ from .base import *
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # Read ALLOWED_HOSTS from environment or site_settings
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
