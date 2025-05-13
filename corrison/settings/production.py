@@ -6,7 +6,7 @@ import environ
 from .base import *
 
 # Read .env file
-environ.Env.read_env(os.path.join(BASE_DIR, '.env.production'))
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -23,24 +23,17 @@ CORS_ALLOWED_ORIGINS = []       # use signal not static list
 CORS_ALLOW_ALL_ORIGINS = False  
 
 # Database settings for production
-import pymysql
-pymysql.install_as_MySQLdb()
-
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": "django.db.backends.postgresql",
         "NAME": env("DATABASE_NAME"),
         "USER": env("DATABASE_USER"),
         "PASSWORD": env("DATABASE_PASSWORD"),
-        "HOST": env("DATABASE_HOST", default="127.0.0.1"),
-        "PORT": env("DATABASE_PORT", default="3306"),
+        "HOST": env("DATABASE_HOST", default="db"),
+        "PORT": env("DATABASE_PORT", default="5432"),  
         "CONN_MAX_AGE": 600,
         "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-            "use_unicode": True,
             "connect_timeout": 10,
-            "autocommit": True,
         },
     },
 }

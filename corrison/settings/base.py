@@ -9,18 +9,12 @@ from datetime import timedelta
 # Initialize environment variables
 env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-# Try to load environment, but don't fail if file doesn't exist
-try:
-    environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-except Exception:
-    pass
-SECRET_KEY = env('SECRET_KEY')
 
-# IMPORTANT: Load .env.production file directly in base.py
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECRET_KEY
 SECRET_KEY = env('SECRET_KEY')
+
+
 
 # Allow credentials (cookies, authorization headers)
 CORS_ALLOW_CREDENTIALS = True
