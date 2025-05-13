@@ -124,8 +124,10 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 # Session settings
-SESSION_COOKIE_AGE = 86400 * 30  # 30 days
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 SESSION_SAVE_EVERY_REQUEST = True
+
+CORS_SUPPORT_CREDENTIALS = True  
 
 
 # Stripe settings

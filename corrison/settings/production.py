@@ -56,11 +56,29 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
+USE_X_FORWARDED_HOST = True
 
-# Session settings
+# Session settings 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_SECURE = True  # For HTTPS only
-SESSION_COOKIE_SAMESITE = 'Lax'  # Or 'None' with CSRF protection
+SESSION_COOKIE_SECURE = True  # Keep this for HTTPS only
+SESSION_COOKIE_SAMESITE = 'None'  # Changed from 'Lax' to 'None' for cross-domain
+SESSION_COOKIE_HTTPONLY = True  
+SESSION_COOKIE_DOMAIN = '.todiane.com'  # Allows sharing across subdomains
+
+# CORS settings to expose the session headers
+CORS_EXPOSE_HEADERS = [
+    'Set-Cookie',
+    'Cookie',
+]
+
+# ensure session cookies work with CORS
+CORS_SUPPORT_CREDENTIALS = True   
+
+# Session middleware configuration  
+SESSION_SAVE_EVERY_REQUEST = True  
+
+# Optional: increase session timeout if needed
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 
 # Email settings for production
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -71,32 +89,6 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 
-# Logging configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/django.log'),
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['file'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
-    },
-}
 
 # Ensure logs directory exists
 os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
