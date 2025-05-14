@@ -19,7 +19,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-
+# Install psql client
+RUN apt-get update \
+    && apt-get install -y postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download dependencies as a separate step to take advantage of Docker's caching.
 # Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
