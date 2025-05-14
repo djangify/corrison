@@ -13,7 +13,7 @@ DEBUG = False
 
 
 # Read ALLOWED_HOSTS from environment or site_settings
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[]) + ['.sslip.io']
 
 # Set CSRF trusted origins based on allowed hosts
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:8002', 'http://127.0.0.1:8002',])
