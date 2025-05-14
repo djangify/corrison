@@ -101,7 +101,7 @@ secrets.json
 
 Production/
 .env
-static/
+
 staticfiles/
 .htaccess
 *.log
