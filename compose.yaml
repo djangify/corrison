@@ -14,7 +14,7 @@ services:
     build:
       context: .
     ports:
-      - 8000:8000
+      - 8002:8000
     volumes:
       - ./logs:/app/logs
       - ./staticfiles:/app/staticfiles

@@ -13,11 +13,11 @@ DEBUG = False
 
 
 # Read ALLOWED_HOSTS from environment or site_settings
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 # Set CSRF trusted origins based on allowed hosts
-CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
-CSRF_TRUSTED_ORIGINS += [f"http://{host}" for host in ALLOWED_HOSTS]
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:8002', 'http://127.0.0.1:8002',])
+
 
 # CORS origins from env
 CORS_ALLOWED_ORIGINS = []       # use signal not static list
