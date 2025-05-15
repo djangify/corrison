@@ -23,7 +23,7 @@ The main website featuring:
 - Content pages
 - Personal portfolio features
 
-### [ecommerce.todiane.com](https://ecommerce.todiane.com)
+### [ecommerce.todiane.com](https://djangifyecommerce.up.railway.app/)
 A fully-featured e-commerce store with:
 - Product catalog with categories
 - Product variants (size, color, etc.)
