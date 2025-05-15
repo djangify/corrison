@@ -5,6 +5,9 @@ from pathlib import Path
 import os
 import environ
 from datetime import timedelta
+import pymysql 
+
+pymysql.install_as_MySQLdb()
 
 # Initialize environment variables
 env = environ.Env()
