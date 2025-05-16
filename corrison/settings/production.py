@@ -4,6 +4,9 @@ Production settings for the Corrison project.
 import os
 import environ
 from .base import *
+import pymysql 
+
+pymysql.install_as_MySQLdb()
 
 # Read .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -11,19 +14,16 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-
 # Read ALLOWED_HOSTS from environment or site_settings
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[]) + ['.sslip.io']
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 # Set CSRF trusted origins based on allowed hosts
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localhost:8002', 'http://127.0.0.1:8002',])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 
 # CORS origins from env
 CORS_ALLOWED_ORIGINS = []       # use signal not static list
 CORS_ALLOW_ALL_ORIGINS = False  
-
-# Database settings for production
 
 # Database
 DATABASES = {

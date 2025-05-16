@@ -5,6 +5,9 @@ import os
 import environ
 from .base import *
 from .base import env, BASE_DIR
+import pymysql 
+
+pymysql.install_as_MySQLdb()
 
 # this will _overwrite_ any DATABASE_* etc already in os.environ
 env.read_env(
@@ -74,8 +77,6 @@ LOGGING = {
         },
     },
 }
-
-# Database settings for production
 
 # Database
 DATABASES = {
