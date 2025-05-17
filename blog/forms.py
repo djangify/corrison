@@ -1,9 +1,12 @@
+# forms.py
 from django import forms
 from .models import BlogPost
-from tinymce.widgets import TinyMCE
+from markdownx.widgets import MarkdownxWidget
 
 class BlogPostForm(forms.ModelForm):
-    content = forms.CharField(widget=TinyMCE(attrs={'cols': 80, 'rows': 30}))
+    # Use MarkdownX’s two-pane editor
+    content = forms.CharField(widget=MarkdownxWidget())
+
     class Meta:
         model = BlogPost
         fields = [

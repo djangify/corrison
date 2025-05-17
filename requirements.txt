@@ -8,7 +8,6 @@ django-cors-headers==4.7.0
 django-environ==0.12.0
 django-jsonfield==1.4.1
 django-stripe-payments==2.0.0
-django-tinymce==4.1.0
 django-widget-tweaks==1.5.0
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
