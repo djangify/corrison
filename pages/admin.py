@@ -1,8 +1,20 @@
 from django.contrib import admin
 from django.db import models
 from django.contrib.admin.widgets import AdminSplitDateTime
-
 from .models import Page, PageFeature
+
+from markdownx.widgets import MarkdownxWidget
+from django import forms
+
+class MarkdownAdminForm(forms.ModelForm):
+    class Meta:
+        model = Page      
+        fields = '__all__'
+        widgets = {
+            'content': MarkdownxWidget(),  
+        }
+
+
 
 class PageFeatureInline(admin.TabularInline):
     model = PageFeature

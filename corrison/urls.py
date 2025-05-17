@@ -19,7 +19,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('api.urls')),
-    path('tinymce/', include('tinymce.urls')),
+    path('markdownx/', include('markdownx.urls')),
     path('', TemplateView.as_view(template_name='index.html'), name='home'),
     # Swagger/OpenAPI docs
     path('api/v1/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

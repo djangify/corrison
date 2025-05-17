@@ -1,8 +1,17 @@
 from django.contrib import admin
 from django.db import models
 from django.contrib.admin.widgets import AdminSplitDateTime
-
 from .models import BlogPost
+from markdownx.widgets import MarkdownxWidget
+from django import forms
+
+class MarkdownAdminForm(forms.ModelForm):
+    class Meta:
+        model = BlogPost      
+        fields = '__all__'
+        widgets = {
+            'content': MarkdownxWidget(),  
+        }
 
 @admin.register(BlogPost)
 class BlogPostAdmin(admin.ModelAdmin):
