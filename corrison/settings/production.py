@@ -61,9 +61,12 @@ USE_X_FORWARDED_HOST = True
 # Session settings 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_SECURE = True  # Keep this for HTTPS only
-SESSION_COOKIE_SAMESITE = 'None'  # Changed from 'Lax' to 'None' for cross-domain
 SESSION_COOKIE_HTTPONLY = True  
-SESSION_COOKIE_DOMAIN = '.todiane.com'  # Allows sharing across subdomains
+SESSION_COOKIE_DOMAIN = ".djangify.com"
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_DOMAIN    = ".djangify.com"
+CSRF_COOKIE_SECURE      = True
+CSRF_COOKIE_SAMESITE    = "None"
 
 # CORS settings to expose the session headers
 CORS_EXPOSE_HEADERS = [
