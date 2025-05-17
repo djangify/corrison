@@ -1,17 +1,6 @@
 from django.contrib import admin
 from .models import Category, Product, ProductImage, Attribute, AttributeValue, ProductVariant
 
-from markdownx.widgets import MarkdownxWidget
-from django import forms
-
-class MarkdownAdminForm(forms.ModelForm):
-    class Meta:
-        model = Product      
-        fields = '__all__'
-        widgets = {
-            'content': MarkdownxWidget(),  
-        }
-
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1

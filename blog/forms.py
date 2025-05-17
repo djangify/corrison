@@ -1,11 +1,10 @@
 # forms.py
 from django import forms
 from .models import BlogPost
-from markdownx.widgets import MarkdownxWidget
 
 class BlogPostForm(forms.ModelForm):
-    # Use MarkdownX’s two-pane editor
-    content = forms.CharField(widget=MarkdownxWidget())
+    
+    content = forms.CharField()
 
     class Meta:
         model = BlogPost
