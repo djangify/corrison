@@ -1,12 +1,11 @@
 from django.db import models
 from django.utils.text import slugify
+from tinymce.models import HTMLField
 
 class BlogPost(models.Model):
     title          = models.CharField(max_length=200)
     slug           = models.SlugField(unique=True, blank=True)
-    content        = models.TextField(
-        help_text="Write your post in Markdown"
-       )
+    content = HTMLField("Content")
     created_at     = models.DateTimeField(auto_now_add=True)
     # New fields:
     is_published   = models.BooleanField(
