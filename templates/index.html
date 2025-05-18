@@ -1,15 +1,68 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Backend Home</title>
+  <title>Corrison eCommerce Backend</title>
   <style>
-    body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
-    button { padding: 0.5em 1em; font-size: 1rem; margin-top: 1em; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      height: 100vh;
+      font-family: sans;
+      font-size: 1.5rem;
+      text-align: center;
+      
+    }
+    h1 {
+      margin-bottom: 1rem;
+    }
+    ul {
+      text-align: left;
+      max-width: 750px;
+      margin: 0 auto 0.5rem;
+      font-size: 1.5rem;
+      padding-left: 0.5rem;
+    }
+    li {
+      margin-bottom: 0.5rem;
+    }
+    button {
+      padding: 0.5em 1em;
+      font-size: 1rem;
+      margin-top: 1em;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>This is the backend - Nothing to see here!</h1>
-  <button onclick="window.location.href='https://astro.djangify.com'">Return to Main Site</button>
+  <div class="text-center mb-6">
+  <img
+    src="https://res.cloudinary.com/dtjypy9b9/image/upload/v1747555127/corrison-logo_ytbaye.png"
+    alt="Corrison Logo"
+    class="h-24 mx-auto"
+  />
+</div>
+
+  <h1>Welcome to the Corrison Backend</h1>
+  <h2>also known as  The "Engine"!</h2>
+  <p>Corrison is a headless, API-powered platform for content and commerce. Powering websites, blogs, eCommerce and more. It provides:</p>
+
+  <ul>
+      <li>Page management: adaptable pages with rich content, hero sections, and CTAs</li>
+      <li>Blog engine: create and schedule blog posts</li>
+      <li>E-commerce: product catalogs, variants, shopping cart, and wishlist</li>
+      <li>Order & payment: shipping, billing, and multiple payment gateway support</li>
+      <li>LinkHub: list a series of links to your content online including video and audio assets</li>
+      <li>Media library: image uploads, asset management, and optimization</li>
+      <li>Headless API: deliver content to any front-end or device</li>
+      <li>Event and Calendar API: (coming soon!) manage events, registrations, and calendar integrations</li>
+  </ul>
+  <button onclick="window.location.href='https://astro.djangify.com'">
+    Return to Main Site
+  </button>
 </body>
 </html>

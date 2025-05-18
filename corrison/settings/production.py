@@ -1,12 +1,10 @@
-"""
-Production settings for the Corrison project.
-"""
 import os
 import environ
 from .base import *
 import pymysql 
 
 pymysql.install_as_MySQLdb()
+
 
 # Read .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))

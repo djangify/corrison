@@ -1,6 +1,3 @@
-"""
-Base settings for the Corrison project.
-"""
 from pathlib import Path
 import os
 import environ
@@ -14,8 +11,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECRET_KEY
 SECRET_KEY = env('SECRET_KEY')
-
-
 
 # Allow credentials (cookies, authorization headers)
 CORS_ALLOW_CREDENTIALS = True

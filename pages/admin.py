@@ -1,3 +1,5 @@
+# pages/admin.py
+
 from django.contrib import admin
 from django.db import models
 from django.contrib.admin.widgets import AdminSplitDateTime
@@ -7,6 +9,7 @@ from .models import Page, PageFeature
 class PageFeatureInline(admin.TabularInline):
     model = PageFeature
     extra = 1
+
 
 @admin.register(Page)
 class PageAdmin(admin.ModelAdmin):
@@ -22,23 +25,60 @@ class PageAdmin(admin.ModelAdmin):
     list_filter = ('is_published',)
 
     fieldsets = (
+        # 1. Title block
         (None, {
-            'fields': ('title', 'slug', 'subtitle', 'content')
+            'fields': ('title', 'slug', 'subtitle'),
         }),
+
+        # 2. Hero
         ('Hero Section', {
-            'fields': ('hero_title', 'hero_subtitle', 'hero_image', 'hero_content'),
+            'fields': (
+                'hero_title',
+                'hero_subtitle',
+                'hero_image',
+                'hero_content',
+                'hero_button_text',
+                'hero_button_url',
+            ),
         }),
+
+        # 3. Main content
+        ('Content', {
+            'fields': ('content',),
+        }),
+
+        # 4. Feature section
         ('Feature Section', {
             'fields': ('has_feature_section', 'feature_section_title'),
         }),
-        ('Publishing', {
-            'fields': ('is_published', 'published_at', 'order', 'meta_description'),
+
+        # 5. Middle section
+        ('Middle Section', {
+            'fields': ('middle_section_title', 'middle_section_content'),
         }),
+
+        # 6. End section
+        ('End Section', {
+            'fields': ('end_section_title', 'end_section_content'),
+        }),
+
+        # 7. Publishing controls
+        ('Publishing', {
+            'fields': (
+                'is_published',
+                'published_at',
+                'order',
+                'meta_description',
+            ),
+        }),
+
+        # 8. Timestamps
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',),
         }),
     )
+
     readonly_fields = ('created_at', 'updated_at',)
 
     formfield_overrides = {
