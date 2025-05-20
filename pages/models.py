@@ -1,11 +1,11 @@
 from django.db import models
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError 
 
 class Page(models.Model):
     slug = models.SlugField(max_length=100, unique=True)
     title = models.CharField(max_length=200)
     subtitle = models.CharField(max_length=400, blank=True)
-    hero_image = models.ImageField(upload_to="pages/hero/", blank=True, null=True)
     content = models.TextField(help_text="Rich text / HTML")
     meta_description = models.CharField(max_length=300, blank=True)
     is_published = models.BooleanField(default=False)
@@ -23,6 +23,11 @@ class Page(models.Model):
     hero_title = models.CharField(max_length=200, blank=True)
     hero_subtitle = models.CharField(max_length=300, blank=True)
     hero_content = models.TextField(blank=True, help_text="Rich text for hero section")
+    hero_image   = models.ImageField(upload_to="pages/hero/", blank=True, null=True)
+    hero_image_url = models.URLField(                 
+        blank=True,                                   
+        help_text="Public URL of the hero image (leave blank if uploading a file instead)."
+    )
 
     # Optional call-to-action button in hero section
     hero_button_text = models.CharField(
@@ -71,6 +76,25 @@ class Page(models.Model):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        super().clean()
+        if self.hero_image and self.hero_image_url:
+            raise ValidationError(
+                {"hero_image_url": "Choose EITHER an uploaded image OR a URL, not both."}
+            )
+
+    # Convenience helper for templates
+    def hero_image_src(self):
+        """
+        Returns the correct URL to render in the template, preferring the
+        uploaded file when both are present (shouldn’t happen thanks to clean()).
+        """
+        if self.hero_image:
+            return self.hero_image.url
+        return self.hero_image_url or ""
+
+    hero_image_src.short_description = "Hero image source"
 
 
 class PageFeature(models.Model):

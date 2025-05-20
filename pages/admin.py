@@ -21,13 +21,14 @@ class PageAdmin(admin.ModelAdmin):
         'is_published',
         'published_at',
         'order',
+        
     )
     list_filter = ('is_published',)
 
     fieldsets = (
         # 1. Title block
         (None, {
-            'fields': ('title', 'slug', 'subtitle'),
+            'fields': ('title', 'slug', 'subtitle',),
         }),
 
         # 2. Hero
@@ -36,6 +37,7 @@ class PageAdmin(admin.ModelAdmin):
                 'hero_title',
                 'hero_subtitle',
                 'hero_image',
+                'hero_image_url',
                 'hero_content',
                 'hero_button_text',
                 'hero_button_url',
