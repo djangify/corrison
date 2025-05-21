@@ -28,6 +28,7 @@ class Page(models.Model):
         blank=True,                                   
         help_text="Public URL of the hero image (leave blank if uploading a file instead)."
     )
+    hero_right_content = models.TextField(blank=True, help_text="Optional text content for right side of hero (displays INSTEAD of an image if provided)")
 
     # Optional call-to-action button in hero section
     hero_button_text = models.CharField(

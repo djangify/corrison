@@ -39,6 +39,7 @@ class PageAdmin(admin.ModelAdmin):
                 'hero_image',
                 'hero_image_url',
                 'hero_content',
+                'hero_right_content',
                 'hero_button_text',
                 'hero_button_url',
             ),

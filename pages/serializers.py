@@ -30,6 +30,7 @@ class PageSerializer(serializers.ModelSerializer):
             'hero_title',
             'hero_subtitle',
             'hero_content',
+            'hero_right_content',
             'hero_button_text',
             'hero_button_url',
             'middle_section_title',
