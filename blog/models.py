@@ -113,10 +113,7 @@ class BlogPost(TimestampedModel):
         choices=AD_TYPE_CHOICES, 
         default="none"
     )
-    ad_code = HTMLField(
-        blank=True,
-        help_text="HTML/JavaScript ad code (for AdSense)"
-    )
+    ad_code = models.TextField(blank=True, help_text="HTML/JavaScript ad code (for AdSense)")
     ad_image = models.ImageField(
         upload_to="blog/ads/", 
         null=True, 
