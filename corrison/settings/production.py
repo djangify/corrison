@@ -12,16 +12,34 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-# Read ALLOWED_HOSTS from environment or site_settings
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+# Updates to add to corrison/settings/production.py
 
-# Set CSRF trusted origins based on allowed hosts
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+# Make sure your domain is in ALLOWED_HOSTS
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['corrison.corrisonapi.com', 'corrisonapi.com', 'www.corrisonapi.com'])
 
+# Make sure CSRF trusted origins include your domain
+CSRF_TRUSTED_ORIGINS = env.list(
+    'CSRF_TRUSTED_ORIGINS', 
+    default=[
+        'https://corrison.corrisonapi.com',
+        'https://corrisonapi.com',
+        'https://www.corrisonapi.com'
+    ]
+)
 
-# CORS origins from env
-CORS_ALLOWED_ORIGINS = []       # use signal not static list
-CORS_ALLOW_ALL_ORIGINS = False  
+# Ensure your domain is listed in CORS allowed origins
+CORS_ALLOWED_ORIGINS_APPEND = [
+    'https://corrison.corrisonapi.com',
+    'https://corrisonapi.com', 
+    'https://www.corrisonapi.com'
+]
+
+# CORS settings - using the signal-based approach
+# Note: Add your domains via the AllowedOrigin model in the admin interface
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken', 'Set-Cookie']
+CORS_ALLOWED_ORIGINS = []       # keep empty to use signals
+CORS_ALLOW_ALL_ORIGINS = False
 
 # Database
 DATABASES = {
@@ -60,17 +78,17 @@ USE_X_FORWARDED_HOST = True
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_SECURE = True  # Keep this for HTTPS only
 SESSION_COOKIE_HTTPONLY = True  
-SESSION_COOKIE_DOMAIN = ".djangify.com"
+# SESSION_COOKIE_DOMAIN = ".djangify.com"
 SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_DOMAIN    = ".djangify.com"
+# CSRF_COOKIE_DOMAIN    = ".djangify.com"
 CSRF_COOKIE_SECURE      = True
 CSRF_COOKIE_SAMESITE    = "None"
 
 # CORS settings to expose the session headers
-CORS_EXPOSE_HEADERS = [
-    'Set-Cookie',
-    'Cookie',
-]
+# CORS_EXPOSE_HEADERS = [
+#     'Set-Cookie',
+#     'Cookie',
+# ]
 
 # ensure session cookies work with CORS
 CORS_SUPPORT_CREDENTIALS = True   
