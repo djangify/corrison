@@ -30,6 +30,7 @@ class LinkHubAdmin(admin.ModelAdmin):
         'title',
         'slug',
         'description',
+        'background_image',
         'order',
         'is_published',
         'published_at',
@@ -62,7 +63,8 @@ class LinkAdmin(admin.ModelAdmin):
             'pdf': '[PDF]',
             'audio': '[AUDIO]',
             'image': '[IMAGE]',
-            'link': '[LINK]'
+            'link': '[LINK]',
+            'donation': '[DONATION]'
         }
         
         return media_type_indicators.get(obj.media_type, '')

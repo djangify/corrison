@@ -5,6 +5,12 @@ class LinkHub(models.Model):
     slug          = models.SlugField(max_length=100, unique=True)
     title         = models.CharField(max_length=200)
     description   = models.TextField(blank=True)
+    background_image = models.ImageField(
+        upload_to='linkhub/backgrounds/', 
+        blank=True, 
+        null=True,
+        help_text="Optional background image for the link page"
+    )
     created_at    = models.DateTimeField(auto_now_add=True)
     order         = models.PositiveIntegerField(
         default=0,
@@ -39,6 +45,7 @@ class Link(models.Model):
         ('pdf', 'PDF Document'),
         ('audio', 'Audio/Podcast'),
         ('image', 'Image'),
+        ('donation', 'Donation/Tip'),
     )
     
     page          = models.ForeignKey(LinkHub, related_name='links', on_delete=models.CASCADE)
@@ -70,3 +77,4 @@ class Link(models.Model):
 
     def __str__(self):
         return f"{self.page.slug} ↦ {self.title}"
+    

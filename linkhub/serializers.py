@@ -31,6 +31,7 @@ class LinkHubSerializer(serializers.ModelSerializer):
             'slug', 
             'title', 
             'description',
+            'background_image',
             'order', 
             'links'
         ]
