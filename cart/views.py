@@ -14,15 +14,21 @@ from rest_framework.permissions import AllowAny
 
 class CartViewSet(viewsets.GenericViewSet):
     serializer_class = CartSerializer
+    permission_classes = [AllowAny]  # Ensure unauthenticated users can access
     
-    # Modify the get_cart method in CartViewSet in cart/views.py
     def get_cart(self, request):
         """
         Get or create a cart for the current session or user.
         """
         user = request.user if request.user.is_authenticated else None
+        
+        # Ensure session exists
+        if not request.session.session_key:
+            request.session.create()
+            request.session.save()
+            
         session_key = request.session.session_key
-        print(f"Session key: {session_key}, User: {user}")
+        
         # Try to get an existing cart
         if user:
             # Check for user cart
@@ -38,13 +44,6 @@ class CartViewSet(viewsets.GenericViewSet):
                     session_cart.save()
                     return session_cart
         else:
-            # Create session if needed
-            if not session_key:
-                request.session.create()
-                session_key = request.session.session_key
-                # Ensure session is saved
-                request.session.modified = True
-                    
             # Check for session cart
             cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
         
@@ -54,9 +53,11 @@ class CartViewSet(viewsets.GenericViewSet):
                 user=user,
                 session_key=None if user else session_key
             )
-            # Make sure changes are saved
-            request.session.modified = True
-                
+            
+        # Ensure session is always saved
+        request.session.modified = True
+        request.session.save()
+        
         return cart
         
     def list(self, request):
@@ -65,17 +66,12 @@ class CartViewSet(viewsets.GenericViewSet):
         """
         cart = self.get_cart(request)
         serializer = self.get_serializer(cart)
+        
+        # Make sure session is saved
+        request.session.modified = True
+        
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['post'])
-    def clear(self, request):
-        """
-        Clear all items from the cart.
-        """
-        cart = self.get_cart(request)
-        cart.items.all().delete()
-        serializer = self.get_serializer(cart)
-        return Response(serializer.data)
+
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
@@ -97,11 +93,19 @@ class CartItemViewSet(viewsets.ModelViewSet):
         """
         Add an item to the cart.
         """
+        # Ensure session exists first
+        if not request.session.session_key:
+            request.session.create()
+            request.session.save()
+            
+        # Get or create cart
         cart = self.get_cart(request)
+        
         product_id = request.data.get('product')
         variant_id = request.data.get('variant')
         quantity = int(request.data.get('quantity', 1))
         
+        # Rest of the method remains the same
         # Validate product and variant
         product = get_object_or_404(Product, pk=product_id)
         variant = None
@@ -117,8 +121,6 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 )
         else:
             if not product.in_stock or product.stock_qty < quantity:
-                # For testing, add a log statement to see the values
-                print(f"Product: {product.name}, in_stock: {product.in_stock}, stock_qty: {product.stock_qty}, requested: {quantity}")
                 return Response(
                     {'error': 'Not enough stock available'}, 
                     status=status.HTTP_400_BAD_REQUEST
@@ -138,6 +140,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 variant=variant,
                 quantity=quantity
             )
+        
+        # Make sure session is saved
+        request.session.modified = True
         
         serializer = self.get_serializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

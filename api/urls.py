@@ -30,6 +30,7 @@ urlpatterns = [
     path('cart/add/', views.add_to_cart, name='add-to-cart'),
     path('cart/update/', views.update_cart_item, name='update-cart-item'),
     path('cart/remove/', views.remove_cart_item, name='remove-cart-item'),
+    path('contact/', include('core.urls')),
     path('create-payment-intent/', views.create_payment_intent, name='create-payment-intent'),
     path('create-order/', views.create_order, name='create-order'),
     path('placeholder/<int:width>/<int:height>/', views.placeholder_image, name='placeholder-image'),

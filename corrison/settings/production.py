@@ -73,30 +73,32 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 USE_X_FORWARDED_HOST = True
-
 # Session settings 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_SECURE = True  # Keep this for HTTPS only
-SESSION_COOKIE_HTTPONLY = True  
-# SESSION_COOKIE_DOMAIN = ".djangify.com"
-SESSION_COOKIE_SAMESITE = "None"
-# CSRF_COOKIE_DOMAIN    = ".djangify.com"
-CSRF_COOKIE_SECURE      = True
-CSRF_COOKIE_SAMESITE    = "None"
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'None'  # Keep as 'None' for cross-site requests
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'None'  # Keep as 'None' for cross-site requests
 
-# CORS settings to expose the session headers
-# CORS_EXPOSE_HEADERS = [
-#     'Set-Cookie',
-#     'Cookie',
-# ]
+# Update CORS settings 
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = [
+    'Content-Type',
+    'X-CSRFToken',
+    'Set-Cookie',
+]
 
-# ensure session cookies work with CORS
-CORS_SUPPORT_CREDENTIALS = True   
+# Ensure your domains are in CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = [
+    'https://corrison.corrisonapi.com',
+    'https://corrisonapi.com',
+    'https://www.corrisonapi.com',
+    # Add any other frontend domains that need to make requests
+]
 
-# Session middleware configuration  
-SESSION_SAVE_EVERY_REQUEST = True  
-
-# Optional: increase session timeout if needed
+# Session configuration
+SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 
 # Email settings for production

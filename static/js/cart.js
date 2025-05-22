@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')
           },
+          credentials: 'include',  // Important! This tells fetch to include cookies
           body: JSON.stringify({
             product: productId,
             variant: variantId || null,
@@ -57,7 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Function to update cart count in header
   async function updateCartCount() {
     try {
-      const response = await fetch('/api/v1/cart/');
+      const response = await fetch('/api/v1/cart/', {
+        credentials: 'include'  // Important! Include cookies here too
+      });
       if (response.ok) {
         const cart = await response.json();
         const cartCountElement = document.getElementById('cart-count');
