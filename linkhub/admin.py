@@ -8,7 +8,7 @@ from .models import LinkHub, Link
 class LinkInline(admin.TabularInline):
     model = Link
     extra = 1
-    fields = ('title', 'media_type', 'url', 'icon_url', 'description', 'order')
+    fields = ('title', 'media_type', 'url', 'icon', 'description', 'order')
 
 @admin.register(LinkHub)
 class LinkHubAdmin(admin.ModelAdmin):
@@ -54,8 +54,8 @@ class LinkAdmin(admin.ModelAdmin):
     
     def preview(self, obj):
         """Show a preview based on media type"""
-        if obj.icon_url:
-            return format_html('<img src="{}" width="60" height="40" style="object-fit: cover;" />', obj.icon_url)
+        if obj.icon:
+            return f"Icon: {obj.icon}"
         
         # Text-based indicators instead of emojis for database compatibility
         media_type_indicators = {

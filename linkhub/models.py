@@ -57,9 +57,10 @@ class Link(models.Model):
         default='link',
         help_text="Type of media this link represents"
     )
-    icon_url      = models.URLField(
-        blank=True, 
-        help_text="Optional icon, thumbnail or preview image"
+    icon          = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Icon name or class (e.g., 'heart', 'star', 'music')"
     )
     description   = models.TextField(
         blank=True, 
@@ -77,4 +78,3 @@ class Link(models.Model):
 
     def __str__(self):
         return f"{self.page.slug} ↦ {self.title}"
-    

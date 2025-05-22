@@ -10,7 +10,7 @@ class LinkSerializer(serializers.ModelSerializer):
             'id', 
             'title', 
             'url', 
-            'icon_url', 
+            'icon', 
             'media_type',
             'media_type_display',
             'description',
