@@ -16,7 +16,7 @@ SECRET_KEY = env('SECRET_KEY')
 CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
-INSTALLED_APPS = [
+NSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -28,21 +28,21 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_yasg',
     'tinymce',
-    'accounts',
-    'api',
-    'checkout',
-    'core',
-    'cart',
-    'products',
-    'blog',
-    'pages',
-    'linkhub',
+    'accounts.apps.AccountsConfig',
+    'api.apps.ApiConfig',
+    'checkout.apps.CheckoutConfig',
+    'core.apps.CoreConfig',
+    'cart.apps.CartConfig',
+    'products.apps.ProductsConfig',
+    'blog.apps.BlogConfig',
+    'pages.apps.PagesConfig',
+    'linkhub.apps.LinkhubConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

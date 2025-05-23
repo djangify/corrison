@@ -1,4 +1,7 @@
 from django.apps import AppConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CoreConfig(AppConfig):
     name = 'core'
@@ -11,5 +14,15 @@ class CoreConfig(AppConfig):
         @receiver(check_request_enabled)
         def cors_allow_if_whitelisted(sender, request, **kwargs):
             origin = request.META.get('HTTP_ORIGIN')
-            if origin and AllowedOrigin.objects.filter(origin=origin).exists():
-                return True
+            logger.info(f"CORS check - Origin: {origin}")
+            
+            if origin:
+                try:
+                    exists = AllowedOrigin.objects.filter(origin=origin).exists()
+                    logger.info(f"CORS check - Origin {origin} exists: {exists}")
+                    if exists:
+                        return True
+                except Exception as e:
+                    logger.error(f"CORS check error: {e}")
+            
+            return None  # Let default CORS handling continue

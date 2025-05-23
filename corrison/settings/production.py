@@ -5,41 +5,54 @@ import pymysql
 
 pymysql.install_as_MySQLdb()
 
-
 # Read .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-# Updates to add to corrison/settings/production.py
+# ALLOWED_HOSTS
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[
+    'corrison.corrisonapi.com', 
+    'corrisonapi.com', 
+    'www.corrisonapi.com',
+    'localhost',  # for testing
+])
 
-# Make sure your domain is in ALLOWED_HOSTS
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['corrison.corrisonapi.com', 'corrisonapi.com', 'www.corrisonapi.com'])
+# CORS Configuration 
+# Since you're using AllowedOrigin model, we need to ensure CORS middleware can access it
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = []  # Empty because we're using the signal-based approach with AllowedOrigin model
+CORS_ALLOW_ALL_ORIGINS = False
 
-# Make sure CSRF trusted origins include your domain
-CSRF_TRUSTED_ORIGINS = env.list(
-    'CSRF_TRUSTED_ORIGINS', 
-    default=[
-        'https://corrison.corrisonapi.com',
-        'https://corrisonapi.com',
-        'https://www.corrisonapi.com'
-    ]
-)
-
-# Ensure your domain is listed in CORS allowed origins
-CORS_ALLOWED_ORIGINS_APPEND = [
-    'https://corrison.corrisonapi.com',
-    'https://corrisonapi.com', 
-    'https://www.corrisonapi.com'
+# Headers that should be exposed
+CORS_EXPOSE_HEADERS = [
+    'Content-Type',
+    'X-CSRFToken',
+    'Set-Cookie',
 ]
 
-# CORS settings - using the signal-based approach
-# Note: Add your domains via the AllowedOrigin model in the admin interface
-CORS_ALLOW_CREDENTIALS = True
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken', 'Set-Cookie']
-CORS_ALLOWED_ORIGINS = []       # keep empty to use signals
-CORS_ALLOW_ALL_ORIGINS = False
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = [
+    'https://corrison.corrisonapi.com',
+    'https://corrisonapi.com',
+    'https://www.corrisonapi.com',
+    'https://ecommerce.corrisonapi.com',  # Add your frontend domain
+    'http://ecommerce.corrisonapi.com',   # HTTP version too
+]
+
+# Session Configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'None'  # Required for cross-site requests
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
+SESSION_SAVE_EVERY_REQUEST = True
+
+# CSRF Cookie Configuration
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'None'  # Required for cross-site requests
+CSRF_COOKIE_HTTPONLY = False   # Frontend needs to read this
 
 # Database
 DATABASES = {
@@ -64,8 +77,6 @@ DATABASES = {
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
@@ -73,55 +84,17 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 USE_X_FORWARDED_HOST = True
-# Session settings 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'None'  # Keep as 'None' for cross-site requests
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'None'  # Keep as 'None' for cross-site requests
-
-# Update CORS settings 
-CORS_ALLOW_CREDENTIALS = True
-CORS_EXPOSE_HEADERS = [
-    'Content-Type',
-    'X-CSRFToken',
-    'Set-Cookie',
-]
-
-# Ensure your domains are in CSRF trusted origins
-CSRF_TRUSTED_ORIGINS = [
-    'https://corrison.corrisonapi.com',
-    'https://corrisonapi.com',
-    'https://www.corrisonapi.com',
-    # Add any other frontend domains that need to make requests
-]
-
-# Session configuration
-SESSION_SAVE_EVERY_REQUEST = True
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 
 # Email settings for production
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_HOST = env('EMAIL_HOST', default='')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
-EMAIL_HOST_USER = env('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@corrisonapi.com')
 
-
-# Ensure logs directory exists
-os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
-
-# Load site-specific settings
-try:
-    from .site_settings import *
-except ImportError:
-    pass
-
-
-# Configure logging
+# Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -145,6 +118,14 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'cors_file': {  # Add this handler
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/cors-debug.log'),
+            'maxBytes': 10485760,
+            'backupCount': 3,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {
@@ -152,10 +133,26 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
+        'core': {  # Add this logger
+            'handlers': ['cors_file', 'console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
-
-# Ensure the logs directory exists with proper permissions
-import os
+# Ensure logs directory exists
 log_dir = os.path.join(BASE_DIR, 'logs')
 os.makedirs(log_dir, exist_ok=True)
+
+# Load site-specific settings
+try:
+    from .site_settings import *
+except ImportError:
+    pass
+
+# TEMPORARY DEBUG - Add this to see what's happening
+# Remove this after fixing the issue
+if DEBUG is False:
+    import logging
+    logger = logging.getLogger('django.request')
+    logger.setLevel(logging.DEBUG)
