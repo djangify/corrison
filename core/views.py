@@ -1,12 +1,12 @@
 # core/views.py
 from django.shortcuts import render
-
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from .models import ContactMessage
 from .serializers import ContactMessageSerializer
+from .models import ContactPageSettings
+from .serializers import ContactPageSettingsSerializer
 
 def index(request):
     """
@@ -32,3 +32,13 @@ def submit_contact_message(request):
             status=status.HTTP_201_CREATED
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_contact_page_settings(request):
+    settings = ContactPageSettings.objects.first()
+    if not settings:
+        settings = ContactPageSettings.objects.create()
+    
+    serializer = ContactPageSettingsSerializer(settings)
+    return Response(serializer.data)

@@ -78,7 +78,7 @@ LOGGING = {
     },
 }
 
-# Database
+# Dataxxbase
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",

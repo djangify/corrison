@@ -16,13 +16,13 @@ SECRET_KEY = env('SECRET_KEY')
 CORS_ALLOW_CREDENTIALS = True
 
 # Application definition
-NSTALLED_APPS = [
-    'django.contrib.staticfiles',
+INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
