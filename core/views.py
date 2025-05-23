@@ -36,9 +36,18 @@ def submit_contact_message(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_contact_page_settings(request):
-    settings = ContactPageSettings.objects.first()
-    if not settings:
-        settings = ContactPageSettings.objects.create()
-    
-    serializer = ContactPageSettingsSerializer(settings)
-    return Response(serializer.data)
+    try:
+        settings = ContactPageSettings.objects.first()
+        if settings:
+            serializer = ContactPageSettingsSerializer(settings)
+            return Response(serializer.data)
+        else:
+            return Response(
+                {"error": "Contact settings not configured"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

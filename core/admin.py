@@ -47,10 +47,15 @@ class ContactMessageAdmin(admin.ModelAdmin):
     mark_as_unread.short_description = "Mark selected messages as unread"
 
 
+# Add to core/admin.py
+from .models import ContactPageSettings
 
 @admin.register(ContactPageSettings)
 class ContactPageSettingsAdmin(admin.ModelAdmin):
     fieldsets = (
+        ('Page Information', {
+            'fields': ('title', 'slug'),
+        }),
         ('Hero Section', {
             'fields': ('hero_title', 'hero_subtitle'),
         }),
@@ -70,6 +75,8 @@ class ContactPageSettingsAdmin(admin.ModelAdmin):
             'fields': ('social_section_title', 'facebook_url', 'instagram_url', 'twitter_url'),
         }),
     )
+    
+    prepopulated_fields = {'slug': ('title',)}
     
     def has_add_permission(self, request):
         # Only allow adding if no instance exists

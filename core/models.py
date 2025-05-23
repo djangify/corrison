@@ -98,49 +98,59 @@ class AllowedOrigin(models.Model):
     
     # Add to core/models.py
 
+# Add to core/models.py
+
 class ContactPageSettings(models.Model):
     """
     Model for storing contact page information.
     """
-    # Company Address
+    # Title and Slug
+    title = models.CharField(max_length=100, default="Contact Us")
+    slug = models.SlugField(max_length=100, unique=True, default="contact")
+    
+    # Hero Section
+    hero_title = models.CharField(max_length=200, default="Get in Touch")
+    hero_subtitle = models.TextField(blank=True, default="We'd love to hear from you. Send us a message and we'll respond as soon as possible.")
+    
+    # Form Section
+    form_title = models.CharField(max_length=200, default="Send us a Message")
+    
+    # Address Information
+    address_section_title = models.CharField(max_length=100, default="Visit Us")
     address_line1 = models.CharField(max_length=100, blank=True)
     address_line2 = models.CharField(max_length=100, blank=True)
     address_line3 = models.CharField(max_length=100, blank=True)
     address_line4 = models.CharField(max_length=100, blank=True)
     
-    # Phone
+    # Phone Information
+    phone_section_title = models.CharField(max_length=100, default="Call Us")
     phone_number = models.CharField(max_length=50, blank=True)
     business_hours = models.TextField(blank=True, help_text="Enter business hours, one per line")
     
     # Email Addresses
+    email_section_title = models.CharField(max_length=100, default="Email Us")
     general_email = models.EmailField(blank=True)
     support_email = models.EmailField(blank=True)
     sales_email = models.EmailField(blank=True)
     
     # Social Media
+    social_section_title = models.CharField(max_length=100, default="Follow Us")
     facebook_url = models.URLField(blank=True)
     instagram_url = models.URLField(blank=True)
     twitter_url = models.URLField(blank=True)
-    
-    # Page Content
-    hero_title = models.CharField(max_length=200, default="Get in Touch")
-    hero_subtitle = models.TextField(blank=True, default="We'd love to hear from you. Send us a message and we'll respond as soon as possible.")
-    form_title = models.CharField(max_length=200, default="Send us a Message")
-    
-    # Sections Titles
-    address_section_title = models.CharField(max_length=100, default="Visit Us")
-    phone_section_title = models.CharField(max_length=100, default="Call Us")
-    email_section_title = models.CharField(max_length=100, default="Email Us")
-    social_section_title = models.CharField(max_length=100, default="Follow Us")
     
     class Meta:
         verbose_name = 'Contact Page Settings'
         verbose_name_plural = 'Contact Page Settings'
     
     def __str__(self):
-        return "Contact Page Settings"
+        return self.title
     
     def save(self, *args, **kwargs):
+        # Ensure slug is created from title
+        if not self.slug:
+            self.slug = slugify(self.title)
+            
         # Ensure only one instance exists
         if not self.pk and ContactPageSettings.objects.exists():
             return  # Don't allow creating a second instance
