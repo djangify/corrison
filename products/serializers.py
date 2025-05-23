@@ -29,3 +29,4 @@ class ProductSerializer(serializers.ModelSerializer):
             'main_image', 'images', 'variants', 'is_featured', 
             'in_stock', 'stock_qty'
         ]
+        read_only_fields = ['id']  # Explicitly mark id as read-only
