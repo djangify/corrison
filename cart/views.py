@@ -1,77 +1,74 @@
 # cart/views.py
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
-from rest_framework.response import Response
-from rest_framework import status
+from .utils import CartTokenManager
 from products.models import Product, ProductVariant
 from django.shortcuts import get_object_or_404
-from cart.models import Cart, CartItem
-from rest_framework.permissions import AllowAny
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CartViewSet(viewsets.GenericViewSet):
     serializer_class = CartSerializer
-    permission_classes = [AllowAny]  # Ensure unauthenticated users can access
+    permission_classes = [AllowAny]
     
-    def get_cart(self, request):
+    def get_cart_from_request(self, request):
         """
-        Get or create a cart for the current session or user.
+        Get or create a cart based on the request.
+        Checks for cart token in Authorization header or creates new cart.
         """
-        user = request.user if request.user.is_authenticated else None
+        # Try to get token from Authorization header
+        auth_header = request.headers.get('Authorization', '')
+        cart_token = None
         
-        # Ensure session exists
-        if not request.session.session_key:
-            request.session.create()
-            request.session.save()
-            
-        session_key = request.session.session_key
+        if auth_header.startswith('Bearer '):
+            cart_token = auth_header.split(' ')[1]
         
-        # Try to get an existing cart
-        if user:
-            # Check for user cart
-            cart = Cart.objects.filter(user=user, is_active=True).first()
-            
-            # Check if there's a session cart to merge
-            if session_key and not cart:
-                session_cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
-                if session_cart:
-                    # Transfer session cart to user
-                    session_cart.user = user
-                    session_cart.session_key = None
-                    session_cart.save()
-                    return session_cart
-        else:
-            # Check for session cart
-            cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
+        # Try to get cart by token
+        cart = None
+        if cart_token:
+            cart_id = CartTokenManager.decode_cart_token(cart_token)
+            if cart_id:
+                cart = Cart.objects.filter(id=cart_id, is_active=True).first()
+        
+        # If no cart found and user is authenticated, try to get user's cart
+        if not cart and request.user.is_authenticated:
+            cart = Cart.objects.filter(user=request.user, is_active=True).first()
         
         # Create new cart if needed
         if not cart:
             cart = Cart.objects.create(
-                user=user,
-                session_key=None if user else session_key
+                user=request.user if request.user.is_authenticated else None
             )
-            
-        # Ensure session is always saved
-        request.session.modified = True
-        request.session.save()
+            # Generate token for new cart
+            new_token = CartTokenManager.generate_cart_token(cart.id)
+            cart.token = new_token
+            cart.save()
+        
+        # Ensure cart has a token
+        if not cart.token:
+            cart.token = CartTokenManager.generate_cart_token(cart.id)
+            cart.save()
         
         return cart
         
     def list(self, request):
         """
-        Get the current cart.
+        Get the current cart with token.
         """
-        cart = self.get_cart(request)
+        cart = self.get_cart_from_request(request)
         serializer = self.get_serializer(cart)
         
-        # Make sure session is saved
-        request.session.modified = True
+        # Add token to response
+        data = serializer.data
+        data['token'] = cart.token
         
-        return Response(serializer.data)
-
+        return Response(data)
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
@@ -79,69 +76,26 @@ class CartItemViewSet(viewsets.ModelViewSet):
     serializer_class = CartItemSerializer
     
     def get_queryset(self):
-        cart = self.get_cart(self.request)
+        cart = self.get_cart_from_request(self.request)
         return CartItem.objects.filter(cart=cart)
     
-    def get_cart(self, request):
+    def get_cart_from_request(self, request):
         """
-        Get or create a cart for the current session or user.
+        Get cart from request using CartViewSet's method
         """
-        user = request.user if request.user.is_authenticated else None
-        
-        # Ensure session exists
-        if not request.session.session_key:
-            request.session.create()
-            request.session.save()
-            
-        session_key = request.session.session_key
-        
-        # Try to get an existing cart
-        if user:
-            # Check for user cart
-            cart = Cart.objects.filter(user=user, is_active=True).first()
-            
-            # Check if there's a session cart to merge
-            if session_key and not cart:
-                session_cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
-                if session_cart:
-                    # Transfer session cart to user
-                    session_cart.user = user
-                    session_cart.session_key = None
-                    session_cart.save()
-                    return session_cart
-        else:
-            # Check for session cart
-            cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
-        
-        # Create new cart if needed
-        if not cart:
-            cart = Cart.objects.create(
-                user=user,
-                session_key=None if user else session_key
-            )
-            
-        # Ensure session is always saved
-        request.session.modified = True
-        
-        return cart
-        
+        cart_viewset = CartViewSet()
+        return cart_viewset.get_cart_from_request(request)
+    
     def create(self, request, *args, **kwargs):
         """
         Add an item to the cart.
         """
-        # Ensure session exists first
-        if not request.session.session_key:
-            request.session.create()
-            request.session.save()
-            
-        # Get or create cart
-        cart = self.get_cart(request)
+        cart = self.get_cart_from_request(request)
         
         product_id = request.data.get('product')
         variant_id = request.data.get('variant')
         quantity = int(request.data.get('quantity', 1))
         
-        # Rest of the method remains the same
         # Validate product and variant
         product = get_object_or_404(Product, pk=product_id)
         variant = None
@@ -177,11 +131,13 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 quantity=quantity
             )
         
-        # Make sure session is saved
-        request.session.modified = True
-        
         serializer = self.get_serializer(cart_item)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        # Include cart token in response
+        response_data = serializer.data
+        response_data['cart_token'] = cart.token
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     def update(self, request, *args, **kwargs):
         """
@@ -210,17 +166,10 @@ class CartItemViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(cart_item)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['post'], url_path='add')
-    def add_to_cart(self, request):
-        # Implementation for /api/v1/items/add/
-        pass
-    
-    @action(detail=True, methods=['put'], url_path='update')
-    def update_item(self, request, pk=None):
-        # Implementation for /api/v1/items/{id}/update/
-        pass
-    
-    @action(detail=True, methods=['delete'], url_path='remove')
-    def remove_item(self, request, pk=None):
-        # Implementation for /api/v1/items/{id}/remove/
-        pass
+    def destroy(self, request, *args, **kwargs):
+        """
+        Remove item from cart.
+        """
+        cart_item = self.get_object()
+        cart_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

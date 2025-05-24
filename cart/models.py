@@ -17,6 +17,7 @@ class Cart(UUIDModel, TimestampedModel):
         null=True, blank=True
     )
     session_key = models.CharField(max_length=255, null=True, blank=True)
+    token = models.CharField(max_length=500, null=True, blank=True, db_index=True)  # New field for JWT token
     is_active = models.BooleanField(default=True)
     
     class Meta:
@@ -25,6 +26,7 @@ class Cart(UUIDModel, TimestampedModel):
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['session_key']),
+            models.Index(fields=['token']),  # New index for token lookups
             models.Index(fields=['is_active']),
         ]
     
@@ -46,23 +48,36 @@ class Cart(UUIDModel, TimestampedModel):
         Get total number of items in cart.
         """
         return self.items.count()
+    
+    def clear(self):
+        """
+        Clear all items from the cart.
+        """
+        self.items.all().delete()
 
-    # Inside the CartItem model in models.py
-    @property
-    def unit_price(self):
+    @classmethod
+    def get_or_create_cart(cls, user=None, token=None):
         """
-        Get the unit price of the item.
+        Get or create a cart based on user or token
         """
-        if self.variant:
-            return self.variant.price
-        return self.product.current_price
+        cart = None
+        
+        if user and user.is_authenticated:
+            # Try to get user's active cart
+            cart = cls.objects.filter(user=user, is_active=True).first()
+        elif token:
+            # Try to get cart by token
+            cart = cls.objects.filter(token=token, is_active=True).first()
+        
+        # Create new cart if needed
+        if not cart:
+            cart = cls.objects.create(
+                user=user if user and user.is_authenticated else None,
+                token=token
+            )
+        
+        return cart
 
-    @property
-    def total_price(self):
-        """
-        Calculate the total price for this item.
-        """
-        return self.unit_price * self.quantity
 
 class CartItem(UUIDModel, TimestampedModel):
     """
@@ -95,7 +110,6 @@ class CartItem(UUIDModel, TimestampedModel):
             return f"{self.quantity} x {self.product.name} ({self.variant})"
         return f"{self.quantity} x {self.product.name}"
     
-    # Inside the CartItem model in models.py
     @property
     def unit_price(self):
         """

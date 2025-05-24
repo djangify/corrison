@@ -1,4 +1,4 @@
-# checkout/services/checkout.py
+# checkout/services/checkout.py - Updated create_order_from_cart method
 from decimal import Decimal
 from django.conf import settings
 from cart.models import Cart
@@ -23,12 +23,27 @@ class CheckoutService:
             request: The HTTP request
             billing_address: Billing address data or Address instance
             shipping_address: Shipping address data or Address instance (optional)
-            **kwargs: Additional order data
+            **kwargs: Additional order data including 'cart_token'
             
         Returns:
             tuple: (success, order, error_message)
         """
-        cart = Cart.get_or_create_cart(request)
+        # Get cart using token or user
+        cart_token = kwargs.get('cart_token')
+        cart = None
+        
+        if cart_token:
+            from cart.utils import CartTokenManager
+            cart_id = CartTokenManager.decode_cart_token(cart_token)
+            if cart_id:
+                cart = Cart.objects.filter(id=cart_id, is_active=True).first()
+        
+        # Fallback to user if authenticated and no cart found
+        if not cart and request.user.is_authenticated:
+            cart = Cart.objects.filter(user=request.user, is_active=True).first()
+        
+        if not cart:
+            return False, None, "Cart not found."
         
         # Check if cart is empty
         if cart.items.count() == 0:
@@ -151,6 +166,7 @@ class CheckoutService:
             is_default_billing=is_default_billing,
         )
     
+    # Keep all other existing methods unchanged...
     @staticmethod
     def create_payment_intent(order, payment_method='stripe'):
         """
@@ -361,4 +377,3 @@ class OrderService:
         order.save()
         
         return True, "Order cancelled successfully."
-    
