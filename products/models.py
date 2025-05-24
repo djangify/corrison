@@ -55,7 +55,7 @@ class ProductManager(models.Manager):
         return self.active().filter(category__slug=category_slug)
 
 
-class Product(SluggedModel, TimestampedModel, PublishableModel, SEOModel):
+class Product(UUIDModel, SluggedModel, TimestampedModel, PublishableModel, SEOModel):
     """
     Product model.
     """

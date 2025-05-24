@@ -84,11 +84,47 @@ class CartItemViewSet(viewsets.ModelViewSet):
     
     def get_cart(self, request):
         """
-        Get or create the cart for the current user or session.
+        Get or create a cart for the current session or user.
         """
-        cart_viewset = CartViewSet()
-        return cart_viewset.get_cart(request)
-    
+        user = request.user if request.user.is_authenticated else None
+        
+        # Ensure session exists
+        if not request.session.session_key:
+            request.session.create()
+            request.session.save()
+            
+        session_key = request.session.session_key
+        
+        # Try to get an existing cart
+        if user:
+            # Check for user cart
+            cart = Cart.objects.filter(user=user, is_active=True).first()
+            
+            # Check if there's a session cart to merge
+            if session_key and not cart:
+                session_cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
+                if session_cart:
+                    # Transfer session cart to user
+                    session_cart.user = user
+                    session_cart.session_key = None
+                    session_cart.save()
+                    return session_cart
+        else:
+            # Check for session cart
+            cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
+        
+        # Create new cart if needed
+        if not cart:
+            cart = Cart.objects.create(
+                user=user,
+                session_key=None if user else session_key
+            )
+            
+        # Ensure session is always saved
+        request.session.modified = True
+        
+        return cart
+        
     def create(self, request, *args, **kwargs):
         """
         Add an item to the cart.
