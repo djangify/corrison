@@ -7,7 +7,8 @@ from datetime import timedelta
 # Initialize environment variables
 env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
+# Read the .env file
+env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECRET_KEY
 SECRET_KEY = env('SECRET_KEY')
@@ -26,7 +27,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'drf_yasg',
     'tinymce',
     'accounts.apps.AccountsConfig',
     'api.apps.ApiConfig',
@@ -171,4 +171,16 @@ TINYMCE_DEFAULT_CONFIG = {
     'contextmenu': 'formats | link image',
     'menubar': True,
     'statusbar': True,
+}
+
+# Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DATABASE_NAME'),
+        'USER': env('DATABASE_USER'),
+        'PASSWORD': env('DATABASE_PASSWORD'),
+        'HOST': env('DATABASE_HOST', default='localhost'),
+        'PORT': env('DATABASE_PORT', default='5432'),
+    }
 }

@@ -108,4 +108,5 @@ passenger_wsgi.py
 .env_local
 
 **/settings/local.py
+cloud-init.yaml
 
