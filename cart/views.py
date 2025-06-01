@@ -34,7 +34,7 @@ class CartViewSet(viewsets.GenericViewSet):
         if cart_token:
             cart_id = CartTokenManager.decode_cart_token(cart_token)
             if cart_id:
-                # cart_id is now an integer, not UUID
+                # cart_id is now guaranteed to be an integer from CartTokenManager
                 cart = Cart.objects.filter(id=cart_id, is_active=True).first()
 
         # If no cart found and user is authenticated, try to get user's cart
@@ -46,14 +46,13 @@ class CartViewSet(viewsets.GenericViewSet):
             cart = Cart.objects.create(
                 user=request.user if request.user.is_authenticated else None
             )
-            # Generate token for new cart - cart.id is now an integer
+            # Generate token for new cart
             new_token = CartTokenManager.generate_cart_token(cart.id)
             cart.token = new_token
             cart.save()
 
         # Ensure cart has a token
         if not cart.token:
-            # cart.id is now an integer
             cart.token = CartTokenManager.generate_cart_token(cart.id)
             cart.save()
 
@@ -67,6 +66,20 @@ class CartViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(cart)
 
         # Add token to response
+        data = serializer.data
+        data["token"] = cart.token
+
+        return Response(data)
+
+    @action(detail=False, methods=["post"])
+    def clear(self, request):
+        """
+        Clear all items from the cart.
+        """
+        cart = self.get_cart_from_request(request)
+        cart.clear()
+
+        serializer = self.get_serializer(cart)
         data = serializer.data
         data["token"] = cart.token
 
@@ -98,33 +111,31 @@ class CartItemViewSet(viewsets.ModelViewSet):
         variant_id = request.data.get("variant")
         quantity = int(request.data.get("quantity", 1))
 
-        # Convert product_id to integer (no longer UUID)
+        # Convert product_id to integer
         try:
-            if isinstance(product_id, str):
-                product_id = int(product_id)
-            elif not isinstance(product_id, int):
-                raise ValueError("Invalid product ID type")
+            product_id = int(product_id)
         except (ValueError, TypeError):
             return Response(
                 {"error": "Invalid product ID format"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate product and variant
+        # Validate product
         product = get_object_or_404(Product, pk=product_id)
+
+        # Handle variant if provided
         variant = None
         if variant_id:
             try:
-                if isinstance(variant_id, str):
-                    variant_id = int(variant_id)
-                elif not isinstance(variant_id, int):
-                    raise ValueError("Invalid variant ID type")
+                variant_id = int(variant_id)
+                variant = get_object_or_404(
+                    ProductVariant, pk=variant_id, product=product
+                )
             except (ValueError, TypeError):
                 return Response(
                     {"error": "Invalid variant ID format"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            variant = get_object_or_404(ProductVariant, pk=variant_id, product=product)
 
         # Check stock
         if variant:
@@ -134,11 +145,13 @@ class CartItemViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
-            if not product.in_stock or product.stock_qty < quantity:
-                return Response(
-                    {"error": "Not enough stock available"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # For digital products, stock checking may not apply
+            if product.product_type == "physical":
+                if not product.in_stock or product.stock_qty < quantity:
+                    return Response(
+                        {"error": "Not enough stock available"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
         # Check if item already exists in cart
         try:
@@ -180,11 +193,16 @@ class CartItemViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
-            if not cart_item.product.in_stock or cart_item.product.stock_qty < quantity:
-                return Response(
-                    {"error": "Not enough stock available"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # For digital products, stock checking may not apply
+            if cart_item.product.product_type == "physical":
+                if (
+                    not cart_item.product.in_stock
+                    or cart_item.product.stock_qty < quantity
+                ):
+                    return Response(
+                        {"error": "Not enough stock available"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
         cart_item.quantity = quantity
         cart_item.save()

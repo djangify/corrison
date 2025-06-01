@@ -111,5 +111,5 @@ passenger_wsgi.py
 cloud-init.yaml
 check_cpu.sh
 ruff.toml 
-
+.json
 

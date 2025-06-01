@@ -34,19 +34,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "description", "category__name"]
-    ordering_fields = ["name", "price", "created_at", "effective_price"]
+    ordering_fields = [
+        "name",
+        "price",
+        "created_at",
+    ]  # Removed "effective_price" - use model property instead
 
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        # Add computed field for effective price (sale price if exists, otherwise regular price)
-        queryset = queryset.annotate(
-            effective_price=Case(
-                When(sale_price__isnull=False, then=F("sale_price")),
-                default=F("price"),
-                output_field=DecimalField(),
-            )
-        )
+        # REMOVED: effective_price annotation that was conflicting with model property
+        # The Product model already has an effective_price property, so we don't need to annotate it
 
         # Add manual filtering
         category_slug = self.request.query_params.get("category", None)

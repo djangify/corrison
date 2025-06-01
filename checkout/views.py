@@ -13,32 +13,68 @@ import stripe
 import json
 
 
+def get_cart_token_from_request(request):
+    """
+    Helper function to get cart token from various sources.
+    """
+    # Try Authorization header first
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
+
+    # Try from session
+    cart_token = request.session.get("cart_token")
+    if cart_token:
+        return cart_token
+
+    # Try from POST data
+    if request.method == "POST":
+        cart_token = request.POST.get("cart_token")
+        if cart_token:
+            return cart_token
+
+    # Try from GET parameters
+    cart_token = request.GET.get("cart_token")
+    if cart_token:
+        return cart_token
+
+    return None
+
+
 def checkout(request):
     """
     Main checkout view.
     """
-    # Get cart data
-    cart_data = CartService.get_cart_data(request)
+    # Get cart token and cart data
+    cart_token = get_cart_token_from_request(request)
+    cart_data = CartService.get_cart_data(request, cart_token)
 
     # Check if cart is empty
     if cart_data["item_count"] == 0:
         messages.warning(
             request, "Your cart is empty. Please add some items before checking out."
         )
-        return redirect("cart:cart")
+        return redirect("products:catalog")  # Redirect to catalog instead of cart:cart
+
+    # Store cart token in session for checkout process
+    if cart_data.get("cart_token"):
+        request.session["cart_token"] = cart_data["cart_token"]
 
     # Check if cart contains only digital items
     cart = cart_data.get("cart")
-    is_digital_only = cart.is_digital_only if cart else False
+    is_digital_only = cart_data.get("is_digital_only", False)
 
     context = {
         "cart": cart_data["cart"],
         "items": cart_data["items"],
         "subtotal": cart_data["subtotal"],
         "item_count": cart_data["item_count"],
+        "cart_token": cart_data["cart_token"],
         "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
         "is_digital_only": is_digital_only,
-        "requires_shipping": not is_digital_only,
+        "requires_shipping": cart_data.get("requires_shipping", True),
+        "has_digital_items": cart_data.get("has_digital_items", False),
+        "has_physical_items": cart_data.get("has_physical_items", False),
     }
 
     return render(request, "checkout/checkout.html", context)
@@ -51,24 +87,24 @@ def process_checkout(request):
     if request.method != "POST":
         return redirect("checkout:checkout")
 
-    # Get cart data
-    cart_data = CartService.get_cart_data(request)
+    # Get cart token and cart data
+    cart_token = get_cart_token_from_request(request)
+    cart_data = CartService.get_cart_data(request, cart_token)
 
     # Check if cart is empty
     if cart_data["item_count"] == 0:
         messages.warning(
             request, "Your cart is empty. Please add some items before checking out."
         )
-        return redirect("cart:cart")
+        return redirect("products:catalog")
 
     # Get form data
     form_data = request.POST
 
     # Check if cart contains only digital items
-    cart = cart_data.get("cart")
-    is_digital_only = cart.is_digital_only if cart else False
+    is_digital_only = cart_data.get("is_digital_only", False)
 
-    # Order data - addresses will be collected by payment gateway
+    # Order data - no addresses needed, Stripe collects them
     order_data = {
         "email": request.user.email
         if request.user.is_authenticated
@@ -81,9 +117,10 @@ def process_checkout(request):
         "digital_delivery_email": form_data.get("digital_email")
         if is_digital_only
         else None,
+        "cart_token": cart_data.get("cart_token"),  # Pass cart token
     }
 
-    # Create the order without address collection
+    # Create the order from cart
     success, order, error_message = CheckoutService.create_order_from_cart(
         request, **order_data
     )
@@ -192,6 +229,8 @@ def payment_success(request):
         del request.session["payment_intent_client_secret"]
     if "order_id" in request.session:
         del request.session["order_id"]
+    if "cart_token" in request.session:
+        del request.session["cart_token"]
 
     # Redirect to confirmation page
     return redirect("checkout:confirmation", order_number=order.order_number)
@@ -207,12 +246,12 @@ def confirmation(request, order_number):
     if request.user.is_authenticated:
         if order.user and order.user != request.user:
             messages.error(request, "You do not have permission to view this order.")
-            return redirect("core:home")
+            return redirect("products:catalog")
     else:
         # For guest users, check if the order is in the session
         if request.session.get("order_id") != order.id:
             messages.error(request, "You do not have permission to view this order.")
-            return redirect("core:home")
+            return redirect("products:catalog")
 
     # Get digital download items for the confirmation page
     digital_items = order.items.filter(is_digital=True)
@@ -296,7 +335,7 @@ def digital_download(request, download_token):
     if request.user.is_authenticated:
         if order_item.order.user and order_item.order.user != request.user:
             messages.error(request, "You do not have permission to download this file.")
-            return redirect("core:home")
+            return redirect("products:catalog")
     else:
         # For guest users, check if they have the order in session or provide order verification
         messages.error(request, "Please log in to download your files.")

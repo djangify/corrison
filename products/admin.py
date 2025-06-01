@@ -51,10 +51,11 @@ class ProductAdmin(admin.ModelAdmin):
         "sale_price",
         "is_featured",
         "in_stock",
+        "is_digital_display",
         "is_active",
     )
     list_filter = ("category", "product_type", "is_featured", "in_stock", "is_active")
-    search_fields = ("name", "description")
+    search_fields = ("name", "description", "sku")
     prepopulated_fields = {"slug": ("name",)}
     list_editable = ("price", "sale_price", "is_featured", "in_stock", "is_active")
     inlines = [ProductImageInline, ProductVariantInline]
@@ -91,6 +92,15 @@ class ProductAdmin(admin.ModelAdmin):
         ),
     )
 
+    def is_digital_display(self, obj):
+        """Display digital product indicator"""
+        if obj.product_type == "digital":
+            return "📱 Digital"
+        return "📦 Physical"
+
+    is_digital_display.short_description = "Type"
+    is_digital_display.admin_order_field = "product_type"
+
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
@@ -122,6 +132,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "sku",
         "price_adjustment",
         "stock_qty",
+        "has_digital_file",
         "is_active",
     )
     list_filter = ("is_active", "product", "product__product_type")
@@ -158,3 +169,13 @@ class ProductVariantAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def has_digital_file(self, obj):
+        """Display if variant has a digital file"""
+        if obj.digital_file:
+            return "📁 Yes"
+        elif obj.product.digital_file:
+            return "📁 Inherited"
+        return "❌ No"
+
+    has_digital_file.short_description = "Digital File"
