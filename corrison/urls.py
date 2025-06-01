@@ -10,9 +10,6 @@ urlpatterns = [
     path('api/v1/', include('api.urls')),
     path('', TemplateView.as_view(template_name='index.html'), name='home'),
     path('tinymce/', include('tinymce.urls')),
-    path('static/<path:path>', serve, {
-        'document_root': settings.STATIC_ROOT,
-    }),
     path('media/<path:path>', serve, {
         'document_root': settings.MEDIA_ROOT,
     }),

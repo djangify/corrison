@@ -109,4 +109,7 @@ passenger_wsgi.py
 
 **/settings/local.py
 cloud-init.yaml
+check_cpu.sh
+ruff.toml 
+
 
