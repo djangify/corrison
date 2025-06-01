@@ -1,5 +1,5 @@
-from rest_framework import serializers, status, viewsets
-from checkout.models import Address, Order, OrderItem, Payment
+from rest_framework import serializers
+from checkout.models import Order, OrderItem, Payment
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 
@@ -8,41 +8,86 @@ from products.models import Category
 User = get_user_model()
 
 
-class AddressSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Address
-        fields = '__all__'
-
 class OrderItemSerializer(serializers.ModelSerializer):
     product = serializers.StringRelatedField()
     variant = serializers.StringRelatedField()
 
+    # Digital download fields
+    can_download = serializers.BooleanField(read_only=True)
+    download_url = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderItem
         fields = (
-            'id', 'order', 'product', 'variant',
-            'product_name', 'variant_name', 'sku',
-            'price', 'quantity', 'total_price',
+            "id",
+            "order",
+            "product",
+            "variant",
+            "product_name",
+            "variant_name",
+            "sku",
+            "price",
+            "quantity",
+            "total_price",
+            # Digital download fields
+            "is_digital",
+            "download_token",
+            "download_expires_at",
+            "download_count",
+            "max_downloads",
+            "can_download",
+            "download_url",
         )
+
+    def get_download_url(self, obj):
+        """Generate download URL for digital items"""
+        if obj.is_digital and obj.download_token and obj.can_download:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(f"/downloads/{obj.download_token}/")
+        return None
+
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     user = serializers.StringRelatedField()
-    shipping_address = AddressSerializer(read_only=True)
-    billing_address = AddressSerializer(read_only=True)
+
+    # Digital order fields
+    delivery_email = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = (
-            'id', 'user', 'guest_email', 'order_number',
-            'status', 'payment_status',
-            'shipping_address', 'billing_address',
-            'shipping_method', 'tracking_number',
-            'subtotal', 'shipping_cost', 'tax_amount',
-            'discount_amount', 'total',
-            'customer_notes', 'admin_notes',
-            'items', 'created_at',
+            "id",
+            "user",
+            "guest_email",
+            "order_number",
+            "status",
+            "payment_status",
+            "shipping_method",
+            "tracking_number",
+            "subtotal",
+            "shipping_cost",
+            "tax_amount",
+            "discount_amount",
+            "total",
+            "customer_notes",
+            "admin_notes",
+            "items",
+            "created_at",
+            # Digital order fields
+            "has_digital_items",
+            "has_physical_items",
+            "digital_delivery_email",
+            "is_digital_only",
+            "requires_shipping",
+            "delivery_email",
         )
+
+    def get_delivery_email(self, obj):
+        """Get the delivery email for digital products"""
+        return obj.get_delivery_email()
+
 
 class PaymentSerializer(serializers.ModelSerializer):
     order = serializers.StringRelatedField()
@@ -50,35 +95,41 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = (
-            'id', 'order', 'payment_method',
-            'transaction_id', 'amount', 'status',
-            'payment_data', 'created_at',
+            "id",
+            "order",
+            "payment_method",
+            "transaction_id",
+            "amount",
+            "status",
+            "payment_data",
+            "created_at",
         )
+
 
 class UserCreateUpdateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True,
         required=False,  # allow updates without changing password
         validators=[validate_password],
-        style={'input_type': 'password'},
+        style={"input_type": "password"},
     )
     password2 = serializers.CharField(
         write_only=True,
         required=False,
-        style={'input_type': 'password'},
+        style={"input_type": "password"},
         label="Confirm password",
     )
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'password2')
+        fields = ("id", "username", "email", "password", "password2")
         extra_kwargs = {
-            'email': {'required': True},
+            "email": {"required": True},
         }
 
     def validate(self, attrs):
-        pw = attrs.get('password')
-        pw2 = attrs.get('password2')
+        pw = attrs.get("password")
+        pw2 = attrs.get("password2")
         # On create, both are required; on update, only if one is present
         if self.instance is None:
             # creation: must supply both
@@ -93,15 +144,15 @@ class UserCreateUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('password2', None)
-        password = validated_data.pop('password')
+        validated_data.pop("password2", None)
+        password = validated_data.pop("password")
         user = User.objects.create_user(**validated_data, password=password)
         return user
 
     def update(self, instance, validated_data):
         # Pop out password fields if present
-        password = validated_data.pop('password', None)
-        validated_data.pop('password2', None)
+        password = validated_data.pop("password", None)
+        validated_data.pop("password2", None)
 
         # Update other fields normally
         for attr, value in validated_data.items():
@@ -114,7 +165,8 @@ class UserCreateUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ('id', 'name', 'slug', 'description', 'image')
+        fields = ("id", "name", "slug", "description", "image")

@@ -1,12 +1,12 @@
 # checkout/views.py
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .models import Order, OrderItem, Address, Payment
+from .models import Order, OrderItem, Payment
 from .services.checkout import CheckoutService, OrderService
 from cart.services.cart_manager import CartService
 import stripe
@@ -19,115 +19,104 @@ def checkout(request):
     """
     # Get cart data
     cart_data = CartService.get_cart_data(request)
-    
+
     # Check if cart is empty
-    if cart_data['item_count'] == 0:
-        messages.warning(request, 'Your cart is empty. Please add some items before checking out.')
-        return redirect('cart:cart')
-    
-    # For logged in users, get their addresses
-    addresses = None
-    if request.user.is_authenticated:
-        addresses = Address.objects.filter(user=request.user)
-    
+    if cart_data["item_count"] == 0:
+        messages.warning(
+            request, "Your cart is empty. Please add some items before checking out."
+        )
+        return redirect("cart:cart")
+
+    # Check if cart contains only digital items
+    cart = cart_data.get("cart")
+    is_digital_only = cart.is_digital_only if cart else False
+
     context = {
-        'cart': cart_data['cart'],
-        'items': cart_data['items'],
-        'subtotal': cart_data['subtotal'],
-        'item_count': cart_data['item_count'],
-        'addresses': addresses,
-        'stripe_publishable_key': settings.STRIPE_PUBLISHABLE_KEY,
+        "cart": cart_data["cart"],
+        "items": cart_data["items"],
+        "subtotal": cart_data["subtotal"],
+        "item_count": cart_data["item_count"],
+        "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
+        "is_digital_only": is_digital_only,
+        "requires_shipping": not is_digital_only,
     }
-    
-    return render(request, 'checkout/checkout.html', context)
+
+    return render(request, "checkout/checkout.html", context)
 
 
 def process_checkout(request):
     """
     Process the checkout form.
     """
-    if request.method != 'POST':
-        return redirect('checkout:checkout')
-    
+    if request.method != "POST":
+        return redirect("checkout:checkout")
+
     # Get cart data
     cart_data = CartService.get_cart_data(request)
-    
+
     # Check if cart is empty
-    if cart_data['item_count'] == 0:
-        messages.warning(request, 'Your cart is empty. Please add some items before checking out.')
-        return redirect('cart:cart')
-    
+    if cart_data["item_count"] == 0:
+        messages.warning(
+            request, "Your cart is empty. Please add some items before checking out."
+        )
+        return redirect("cart:cart")
+
     # Get form data
     form_data = request.POST
-    
-    # Create address objects (or get existing ones for authenticated users)
-    billing_data = {
-        'full_name': form_data.get('billing_name'),
-        'address_line1': form_data.get('billing_address1'),
-        'address_line2': form_data.get('billing_address2', ''),
-        'city': form_data.get('billing_city'),
-        'state_province': form_data.get('billing_state'),
-        'postal_code': form_data.get('billing_zip'),
-        'country': form_data.get('billing_country'),
-        'phone': form_data.get('billing_phone'),
-    }
-    
-    # Check if shipping address is same as billing
-    if form_data.get('same_as_billing'):
-        shipping_data = billing_data
-    else:
-        shipping_data = {
-            'full_name': form_data.get('shipping_name'),
-            'address_line1': form_data.get('shipping_address1'),
-            'address_line2': form_data.get('shipping_address2', ''),
-            'city': form_data.get('shipping_city'),
-            'state_province': form_data.get('shipping_state'),
-            'postal_code': form_data.get('shipping_zip'),
-            'country': form_data.get('shipping_country'),
-            'phone': form_data.get('shipping_phone'),
-        }
-    
-    # Additional order data
+
+    # Check if cart contains only digital items
+    cart = cart_data.get("cart")
+    is_digital_only = cart.is_digital_only if cart else False
+
+    # Order data - addresses will be collected by payment gateway
     order_data = {
-        'email': request.user.email if request.user.is_authenticated else form_data.get('email'),
-        'shipping_method': form_data.get('shipping_method', 'standard'),
-        'notes': form_data.get('order_notes', ''),
-        'payment_method': form_data.get('payment_method', 'stripe'),
+        "email": request.user.email
+        if request.user.is_authenticated
+        else form_data.get("email"),
+        "shipping_method": form_data.get("shipping_method", "standard")
+        if not is_digital_only
+        else None,
+        "notes": form_data.get("order_notes", ""),
+        "payment_method": form_data.get("payment_method", "stripe"),
+        "digital_delivery_email": form_data.get("digital_email")
+        if is_digital_only
+        else None,
     }
-    
-    # Create the order
+
+    # Create the order without address collection
     success, order, error_message = CheckoutService.create_order_from_cart(
-        request,
-        billing_address=billing_data,
-        shipping_address=shipping_data,
-        **order_data
+        request, **order_data
     )
-    
+
     if not success:
-        messages.error(request, error_message or 'An error occurred while processing your order.')
-        return redirect('checkout:checkout')
-    
+        messages.error(
+            request, error_message or "An error occurred while processing your order."
+        )
+        return redirect("checkout:checkout")
+
     # If payment method is stripe, create payment intent
-    if order_data['payment_method'] == 'stripe':
+    if order_data["payment_method"] == "stripe":
         # Create a payment intent
         success, client_secret, error_message = CheckoutService.create_payment_intent(
-            order, payment_method='stripe'
+            order, payment_method="stripe"
         )
-        
+
         if not success:
-            messages.error(request, error_message or 'An error occurred with the payment processor.')
-            return redirect('checkout:checkout')
-        
+            messages.error(
+                request,
+                error_message or "An error occurred with the payment processor.",
+            )
+            return redirect("checkout:checkout")
+
         # Store the client secret in the session
-        request.session['payment_intent_client_secret'] = client_secret
-        request.session['order_id'] = str(order.id)
-        
+        request.session["payment_intent_client_secret"] = client_secret
+        request.session["order_id"] = order.id
+
         # Redirect to payment page
-        return redirect('checkout:payment')
-    
+        return redirect("checkout:payment")
+
     # For other payment methods (COD, bank transfer, etc.)
-    # Since these don't require online payment, we can redirect to confirmation
-    return redirect('checkout:confirmation', order_number=order.order_number)
+    return redirect("checkout:confirmation", order_number=order.order_number)
 
 
 def payment(request):
@@ -135,26 +124,26 @@ def payment(request):
     Payment page view.
     """
     # Check if we have a payment intent client secret in the session
-    client_secret = request.session.get('payment_intent_client_secret')
-    order_id = request.session.get('order_id')
-    
+    client_secret = request.session.get("payment_intent_client_secret")
+    order_id = request.session.get("order_id")
+
     if not client_secret or not order_id:
-        messages.error(request, 'Payment session expired. Please try again.')
-        return redirect('checkout:checkout')
-    
+        messages.error(request, "Payment session expired. Please try again.")
+        return redirect("checkout:checkout")
+
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        messages.error(request, 'Order not found. Please try again.')
-        return redirect('checkout:checkout')
-    
+        messages.error(request, "Order not found. Please try again.")
+        return redirect("checkout:checkout")
+
     context = {
-        'client_secret': client_secret,
-        'stripe_publishable_key': settings.STRIPE_PUBLISHABLE_KEY,
-        'order': order,
+        "client_secret": client_secret,
+        "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
+        "order": order,
     }
-    
-    return render(request, 'checkout/payment.html', context)
+
+    return render(request, "checkout/payment.html", context)
 
 
 @csrf_exempt
@@ -163,13 +152,15 @@ def stripe_webhook(request):
     Stripe webhook handler.
     """
     payload = request.body
-    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-    
-    success, order, error_message = CheckoutService.handle_stripe_webhook(payload, sig_header)
-    
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    success, order, error_message = CheckoutService.handle_stripe_webhook(
+        payload, sig_header
+    )
+
     if not success:
         return HttpResponse(status=400)
-    
+
     return HttpResponse(status=200)
 
 
@@ -178,32 +169,32 @@ def payment_success(request):
     Payment success view.
     """
     # Get order from session
-    order_id = request.session.get('order_id')
-    
+    order_id = request.session.get("order_id")
+
     if not order_id:
-        messages.error(request, 'Order not found. Please try again.')
-        return redirect('checkout:checkout')
-    
+        messages.error(request, "Order not found. Please try again.")
+        return redirect("checkout:checkout")
+
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        messages.error(request, 'Order not found. Please try again.')
-        return redirect('checkout:checkout')
-    
+        messages.error(request, "Order not found. Please try again.")
+        return redirect("checkout:checkout")
+
     # Update order status if it hasn't been updated by webhook
-    if order.payment_status == 'pending':
-        order.payment_status = 'paid'
-        order.status = 'processing'
+    if order.payment_status == "pending":
+        order.payment_status = "paid"
+        order.status = "processing"
         order.save()
-    
+
     # Clear session data
-    if 'payment_intent_client_secret' in request.session:
-        del request.session['payment_intent_client_secret']
-    if 'order_id' in request.session:
-        del request.session['order_id']
-    
+    if "payment_intent_client_secret" in request.session:
+        del request.session["payment_intent_client_secret"]
+    if "order_id" in request.session:
+        del request.session["order_id"]
+
     # Redirect to confirmation page
-    return redirect('checkout:confirmation', order_number=order.order_number)
+    return redirect("checkout:confirmation", order_number=order.order_number)
 
 
 def confirmation(request, order_number):
@@ -211,24 +202,30 @@ def confirmation(request, order_number):
     Order confirmation view.
     """
     order = get_object_or_404(Order, order_number=order_number)
-    
+
     # Security check: only the user who placed the order or a guest with the matching session ID can view it
     if request.user.is_authenticated:
         if order.user and order.user != request.user:
-            messages.error(request, 'You do not have permission to view this order.')
-            return redirect('core:home')
+            messages.error(request, "You do not have permission to view this order.")
+            return redirect("core:home")
     else:
         # For guest users, check if the order is in the session
-        if request.session.get('order_id') != str(order.id):
-            messages.error(request, 'You do not have permission to view this order.')
-            return redirect('core:home')
-    
+        if request.session.get("order_id") != order.id:
+            messages.error(request, "You do not have permission to view this order.")
+            return redirect("core:home")
+
+    # Get digital download items for the confirmation page
+    digital_items = order.items.filter(is_digital=True)
+
     context = {
-        'order': order,
-        'items': order.items.all(),
+        "order": order,
+        "items": order.items.all(),
+        "digital_items": digital_items,
+        "has_digital_items": order.has_digital_items,
+        "has_physical_items": order.has_physical_items,
     }
-    
-    return render(request, 'checkout/confirmation.html', context)
+
+    return render(request, "checkout/confirmation.html", context)
 
 
 @login_required
@@ -237,13 +234,19 @@ def order_detail(request, order_number):
     Order detail view.
     """
     order = get_object_or_404(Order, order_number=order_number, user=request.user)
-    
+
+    # Get digital download items
+    digital_items = order.items.filter(is_digital=True)
+
     context = {
-        'order': order,
-        'items': order.items.all(),
+        "order": order,
+        "items": order.items.all(),
+        "digital_items": digital_items,
+        "has_digital_items": order.has_digital_items,
+        "has_physical_items": order.has_physical_items,
     }
-    
-    return render(request, 'checkout/order_detail.html', context)
+
+    return render(request, "checkout/order_detail.html", context)
 
 
 @login_required
@@ -251,13 +254,13 @@ def order_list(request):
     """
     Order list view.
     """
-    orders = Order.objects.filter(user=request.user).order_by('-created_at')
-    
+    orders = Order.objects.filter(user=request.user).order_by("-created_at")
+
     context = {
-        'orders': orders,
+        "orders": orders,
     }
-    
-    return render(request, 'checkout/order_list.html', context)
+
+    return render(request, "checkout/order_list.html", context)
 
 
 @login_required
@@ -267,14 +270,74 @@ def cancel_order(request, order_number):
     Cancel order view.
     """
     order = get_object_or_404(Order, order_number=order_number, user=request.user)
-    
+
     # Try to cancel the order
     success, message = OrderService.cancel_order(order)
-    
+
     if success:
         messages.success(request, message)
     else:
         messages.error(request, message)
-    
+
     # Redirect back to order detail
-    return redirect('checkout:order_detail', order_number=order_number)
+    return redirect("checkout:order_detail", order_number=order_number)
+
+
+def digital_download(request, download_token):
+    """
+    Handle digital product downloads.
+    """
+    # Get the order item by download token
+    order_item = get_object_or_404(
+        OrderItem, download_token=download_token, is_digital=True
+    )
+
+    # Check if user has permission to download
+    if request.user.is_authenticated:
+        if order_item.order.user and order_item.order.user != request.user:
+            messages.error(request, "You do not have permission to download this file.")
+            return redirect("core:home")
+    else:
+        # For guest users, check if they have the order in session or provide order verification
+        messages.error(request, "Please log in to download your files.")
+        return redirect("accounts:login")
+
+    # Check if download is still valid
+    if not order_item.can_download:
+        if order_item.download_count >= order_item.max_downloads:
+            messages.error(request, "Download limit exceeded for this file.")
+        else:
+            messages.error(request, "Download link has expired.")
+        return redirect(
+            "checkout:order_detail", order_number=order_item.order.order_number
+        )
+
+    # Get the file to download
+    download_file = order_item.get_download_file()
+
+    if not download_file:
+        messages.error(request, "Download file not found.")
+        return redirect(
+            "checkout:order_detail", order_number=order_item.order.order_number
+        )
+
+    # Increment download count
+    order_item.download_count += 1
+    order_item.save()
+
+    # Serve the file
+    from django.http import FileResponse
+    import os
+
+    try:
+        response = FileResponse(
+            open(download_file.path, "rb"),
+            as_attachment=True,
+            filename=os.path.basename(download_file.name),
+        )
+        return response
+    except FileNotFoundError:
+        messages.error(request, "Download file not found on server.")
+        return redirect(
+            "checkout:order_detail", order_number=order_item.order.order_number
+        )
