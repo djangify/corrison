@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db import models
+from tinymce.widgets import TinyMCE
 from .models import (
     Category,
     Product,
@@ -39,6 +41,10 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
     list_editable = ("is_active",)
+
+    formfield_overrides = {
+        models.TextField: {"widget": TinyMCE(attrs={"cols": 80, "rows": 15})},
+    }
 
 
 @admin.register(Product)
@@ -91,6 +97,10 @@ class ProductAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    formfield_overrides = {
+        models.TextField: {"widget": TinyMCE(attrs={"cols": 80, "rows": 20})},
+    }
 
     def is_digital_display(self, obj):
         """Display digital product indicator"""

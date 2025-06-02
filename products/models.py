@@ -132,7 +132,9 @@ class Product(SluggedModel, TimestampedModel, PublishableModel, SEOModel):
 
     # Stock and availability
     is_featured = models.BooleanField(default=False)
-    in_stock = models.BooleanField(default=True)
+    in_stock = models.BooleanField(
+        default=False, help_text="Is the product currently in stock"
+    )
     stock_qty = models.PositiveIntegerField(
         default=0, help_text="Stock quantity (ignored for digital products)"
     )
