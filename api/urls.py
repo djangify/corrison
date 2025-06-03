@@ -1,4 +1,4 @@
-# Update api/urls.py to include calendar API endpoints
+# Update api/urls.py to include courses API endpoints
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
@@ -12,7 +12,13 @@ from appointments.views import (
     AppointmentTypeViewSet,
     AvailabilityViewSet,
     AppointmentViewSet,
-)  # ADD THIS
+)
+from courses.views import (
+    CategoryViewSet as CourseCategoryViewSet,
+    CourseViewSet,
+    EnrollmentViewSet,
+    LessonViewSet,
+)
 from . import views
 
 # Register viewsets with router
@@ -30,7 +36,7 @@ router.register(r"linkhubs", LinkHubViewSet, basename="linkhub")
 router.register(r"cart", CartViewSet, basename="cart")
 router.register(r"items", CartItemViewSet, basename="cart-item")
 
-# ADD THESE APPOINTMENTS ENDPOINTS
+# Appointments endpoints
 router.register(r"appointments/profiles", CalendarUserViewSet, basename="calendar-user")
 router.register(
     r"appointments/appointment-types",
@@ -43,6 +49,13 @@ router.register(
 router.register(
     r"appointments/appointments", AppointmentViewSet, basename="appointment"
 )
+
+# Courses endpoints
+router.register(
+    r"courses/categories", CourseCategoryViewSet, basename="course-category"
+)
+router.register(r"courses", CourseViewSet, basename="course")
+router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
 
 urlpatterns = [
     path("", include(router.urls)),
@@ -62,6 +75,8 @@ urlpatterns = [
         views.placeholder_image,
         name="placeholder-image",
     ),
-    # ADD APPOINTMENTS PUBLIC API ENDPOINTS
+    # Appointments public API endpoints
     path("appointments/", include("appointments.urls")),
+    # Courses nested endpoints
+    path("courses/", include("courses.urls")),
 ]

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "pages.apps.PagesConfig",
     "linkhub.apps.LinkhubConfig",
     "appointments.apps.AppointmentsConfig",
+    "courses.apps.CoursesConfig",  # ADD COURSES APP
 ]
 
 MIDDLEWARE = [
@@ -199,6 +200,18 @@ CALENDAR_SETTINGS = {
     "ENABLE_SMS_NOTIFICATIONS": False,  # Future feature
 }
 
-# Email settings for appointments notifications
+# Courses settings
+COURSES_SETTINGS = {
+    "DEFAULT_COURSE_LANGUAGE": "English",
+    "MAX_LESSONS_PER_COURSE": 100,
+    "DEFAULT_LESSON_DURATION": 15,  # minutes
+    "ENABLE_COURSE_CERTIFICATES": False,  # Future feature
+    "ENABLE_COURSE_DISCUSSIONS": False,  # Future feature
+}
+
+# Email settings for appointments and courses notifications
 if not hasattr(locals(), "SITE_URL"):
     SITE_URL = "http://localhost:8000"  # Override in production settings
+
+# Site name for emails
+SITE_NAME = "Corrison"
