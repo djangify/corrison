@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import WishlistViewSet
 from blog.views import BlogPostViewSet
 from linkhub.views import LinkHubViewSet
-from pages.views import PageViewSet
+from pages.views import PageViewSet, TestimonialViewSet  # Add TestimonialViewSet
 from cart.views import CartViewSet, CartItemViewSet
 from . import views  # Import from the current api app views
 
@@ -18,6 +18,7 @@ router.register(r"payments", views.PaymentViewSet, basename="payment")
 router.register(r"users", views.UserViewSet, basename="user")
 router.register(r"blog/posts", BlogPostViewSet, basename="blog")
 router.register(r"pages", PageViewSet, basename="page")
+router.register(r"testimonials", TestimonialViewSet, basename="testimonial")  # NEW
 router.register(r"linkhubs", LinkHubViewSet, basename="linkhub")
 router.register(r"cart", CartViewSet, basename="cart")
 router.register(r"items", CartItemViewSet, basename="cart-item")
