@@ -13,7 +13,8 @@ A modular, API-first headless platform built with Django REST Framework backend 
 * **Pages**: CMS-powered landing pages with advanced features
 * **LinkHub**: Structured "link-in-bio" pages with multi-media support
 * **Testimonials**: Global testimonial management with star ratings
-* **NEW ADDITION**: Calendar API
+* **Courses**: Complete Learning Management System with video lessons and progress tracking
+* **Calendar**: Appointment booking system with availability management and notifications
 
 ## 🌐 Live Examples
 
@@ -89,7 +90,11 @@ Corrison is designed to be fully headless and modular. You can:
 │                Infrastructure Layer                         │
 │        Database (PostgreSQL) • Media Storage • Static Files│
 └─────────────────────────────────────────────────────────────┘
-## 🔧 Project Structure
+// Get cart contents
+const cart = await fetchCorrisonData('cart/');
+```
+
+---
 
 ### Backend Structure
 ```
@@ -162,6 +167,14 @@ backend/
 │   ├── models.py        # LinkHub and Link models
 │   ├── serializers.py   # LinkHub serializers
 │   └── views.py         # LinkHub viewsets
+├── courses/             # Learning Management System
+│   ├── models.py        # Course, Lesson, Enrollment models
+│   ├── serializers.py   # Course serializers
+│   └── views.py         # Course and enrollment viewsets
+├── appointments/        # Calendar & Booking System
+│   ├── models.py        # CalendarUser, Appointment, Availability models
+│   ├── serializers.py   # Appointment serializers
+│   └── views.py         # Calendar and booking viewsets
 └── users/               # User management
     ├── models.py        # User profile models
     ├── serializers.py   # User serializers
@@ -195,6 +208,8 @@ backend/
 * **blog**: `BlogPost` models, serializers, viewsets
 * **pages**: `Page` models for CMS-driven landing pages and testimonials
 * **linkhub**: `LinkHubPage` & `Link` models for link-in-bio pages
+* **courses**: Complete LMS with `Course`, `Lesson`, `Enrollment` models
+* **appointments**: Calendar system with `CalendarUser`, `Appointment`, `Availability` models
 * **api**: Central DRF router mounting all viewsets
 
 ---
@@ -240,13 +255,27 @@ backend/
 - Background image support
 - Category organization
 
+### 🎓 **Learning Management System**
+- Course creation and management with categories
+- Video lessons with YouTube integration
+- Student enrollment and progress tracking
+- Instructor dashboards and analytics
+- Course completion certificates
+- Free and paid course support
+
+### 📅 **Calendar & Booking System**
+- Appointment scheduling and management
+- Availability slot configuration
+- Email notifications and reminders
+- Payment integration for paid appointments
+- Public booking pages for clients
+- Recurring appointment patterns
+
 ### 🎨 **Enhanced Hero Sections**
 - **Regular Pages**: Standard hero with image/content options
 - **Landing Pages**: Advanced hero with video, countdown, dual CTAs
 - **Content Flexibility**: Rich text content or custom right-side content
 - **Image Options**: Upload or external URL support
-
-## Live Examples in Detail
 
 ### Main Platform (corrisonapi.com)
 - **Landing Pages**: Advanced hero sections with video backgrounds
@@ -311,13 +340,32 @@ GET    /api/v1/testimonials/?category={cat}     # Filter by category
 GET    /api/v1/testimonials/categories/         # Get available categories
 ```
 
+### Courses API
+```
+GET    /api/v1/courses/                     # List all courses
+GET    /api/v1/courses/{slug}/              # Course detail with lessons
+POST   /api/v1/courses/{slug}/enroll/       # Enroll in course
+GET    /api/v1/courses/my_courses/          # User's enrolled courses
+GET    /api/v1/courses/{slug}/lessons/      # Course lessons
+POST   /api/v1/courses/{slug}/lessons/{slug}/complete/ # Mark lesson complete
+GET    /api/v1/enrollments/                 # User enrollment history
+```
+
+### Calendar API
+```
+GET    /api/v1/appointments/profiles/       # Calendar user profiles
+GET    /api/v1/appointments/appointment-types/ # Available appointment types
+GET    /api/v1/appointments/availability/   # Availability slots
+POST   /api/v1/appointments/appointments/   # Create appointment
+GET    /api/v1/appointments/public/{username}/ # Public calendar info
+POST   /api/v1/appointments/public/book/    # Public booking endpoint
+```
+
 ### LinkHub
 ```
 GET    /api/v1/linkhubs/                # List all link hubs
 GET    /api/v1/linkhubs/{slug}/         # Get specific link hub with links
 ```
-
-### Configuration & Security
 - **API Versioning**: All endpoints prefixed with `/api/v1/`
 - **Authentication**: JWT tokens for user sessions
 - **CORS**: Configured for cross-origin requests
@@ -486,11 +534,62 @@ async function addToCart(productId, quantity = 1) {
   return response.json();
 }
 
-// Get cart contents
-const cart = await fetchCorrisonData('cart/');
+#### Working with Courses
+
+```javascript
+// Enroll in a course
+async function enrollInCourse(courseSlug) {
+  const response = await fetch(`${API_BASE}courses/${courseSlug}/enroll/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return response.json();
+}
+
+// Get user's enrolled courses
+const myCourses = await fetchCorrisonData('courses/my_courses/');
+
+// Mark lesson as complete
+async function completeLesson(courseSlug, lessonSlug) {
+  const response = await fetch(`${API_BASE}courses/${courseSlug}/lessons/${lessonSlug}/complete/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return response.json();
+}
 ```
 
----
+#### Working with Calendar/Appointments
+
+```javascript
+// Get available appointment slots
+async function getAvailableSlots(username, appointmentTypeId, startDate) {
+  const params = new URLSearchParams({
+    appointment_type_id: appointmentTypeId,
+    start_date: startDate
+  });
+  
+  const response = await fetch(`${API_BASE}appointments/public/${username}/slots/?${params}`);
+  return response.json();
+}
+
+// Book an appointment
+async function bookAppointment(appointmentData) {
+  const response = await fetch(`${API_BASE}appointments/public/book/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(appointmentData)
+  });
+  return response.json();
+}
+```
 
 ```
 src/
@@ -700,6 +799,22 @@ The Django backend provides:
 - **Social Proof**: Testimonial relationship management with star ratings
 - **Advanced CTAs**: Dual call-to-action buttons with tracking
 
+### 🎓 Learning Management Features
+- **Course Creation**: Rich course content with categories and difficulty levels
+- **Video Integration**: YouTube video embedding for lessons
+- **Progress Tracking**: Student enrollment and lesson completion tracking
+- **Instructor Tools**: Course management and student analytics
+- **Flexible Pricing**: Support for both free and paid courses
+- **Certificate Generation**: Course completion certificates (configurable)
+
+### 📅 Calendar & Booking Features
+- **Appointment Scheduling**: Public booking pages with time slot selection
+- **Availability Management**: Flexible availability patterns and blocked times
+- **Email Notifications**: Automatic confirmations, reminders, and updates
+- **Payment Integration**: Optional payment for appointment types
+- **Multi-timezone Support**: Proper timezone handling for global users
+- **Recurring Appointments**: Support for recurring appointment patterns
+
 ### 🔌 API Features
 - **RESTful Design**: Consistent endpoint structure and responses
 - **JWT Authentication**: Secure token-based authentication
@@ -855,7 +970,62 @@ If switching from WSL to Windows:
 }
 ```
 
-## 👥 Contributing
+### Testimonial Response
+```json
+{
+  "id": 1,
+  "name": "John Doe",
+  "title": "CEO",
+  "company": "Example Corp",
+  "content": "Corrison transformed our business...",
+  "rating": 5,
+  "category": "business",
+  "image": "/media/testimonials/john.jpg"
+}
+```
+
+### Course Response
+```json
+{
+  "id": 1,
+  "name": "Introduction to Django",
+  "slug": "intro-to-django",
+  "instructor": {
+    "username": "teacher",
+    "full_name": "John Teacher"
+  },
+  "category": {
+    "name": "Web Development",
+    "slug": "web-development"
+  },
+  "difficulty": "beginner",
+  "price": null,
+  "is_free": true,
+  "lesson_count": 10,
+  "estimated_duration": "4 weeks",
+  "is_enrolled": false,
+  "progress_percentage": 0
+}
+```
+
+### Appointment Response
+```json
+{
+  "id": 1,
+  "appointment_type": {
+    "name": "Consultation",
+    "duration_minutes": 60,
+    "price": "50.00"
+  },
+  "customer_name": "Jane Doe",
+  "customer_email": "jane@example.com",
+  "date": "2024-01-15",
+  "start_time": "14:00:00",
+  "end_time": "15:00:00",
+  "status": "confirmed",
+  "payment_status": "paid"
+}
+```
 
 1. **Fork the repository**
 2. **Create feature branch**: `git checkout -b feature-name`
@@ -945,6 +1115,20 @@ MIT License © Diane Corriette
 - **Order Management**: Full order lifecycle from cart to fulfillment
 - **Product Variants**: Size, color, and custom variant support
 - **Inventory Tracking**: Real-time stock validation and management
+
+### Complete Learning Management System
+- **Course Creation**: Full course authoring with categories and difficulty levels
+- **Video Lessons**: YouTube integration with progress tracking
+- **Student Enrollment**: Free and paid course enrollment with Stripe
+- **Progress Analytics**: Detailed progress tracking and completion certificates
+- **Instructor Dashboard**: Course management and student analytics
+
+### Professional Calendar System
+- **Appointment Booking**: Public booking pages with real-time availability
+- **Payment Integration**: Optional payment collection for appointment types
+- **Email Automation**: Automatic confirmations, reminders, and notifications
+- **Multi-timezone Support**: Global availability management
+- **Recurring Patterns**: Support for recurring appointments and availability
 
 ### Landing Page Enhancements
 - **Video Backgrounds**: Full YouTube and custom video support with overlay controls
