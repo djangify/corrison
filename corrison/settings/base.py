@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     "pages.apps.PagesConfig",
     "linkhub.apps.LinkhubConfig",
     "appointments.apps.AppointmentsConfig",
-    "courses.apps.CoursesConfig",  # ADD COURSES APP
+    "courses.apps.CoursesConfig",
 ]
 
 MIDDLEWARE = [
@@ -56,7 +56,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "corrison.urls"
 
-
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -72,7 +71,6 @@ TEMPLATES = [
         },
     },
 ]
-
 
 WSGI_APPLICATION = "corrison.wsgi.application"
 
@@ -117,12 +115,11 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 
-# Session settings
+# Session settings (keeping minimal for admin only)
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 SESSION_SAVE_EVERY_REQUEST = True
 
 CORS_SUPPORT_CREDENTIALS = True
-
 
 # Stripe settings
 STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY", default="pk_test_placeholder")
@@ -135,17 +132,30 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # Comment out JWT auth temporarily
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",  # Keep for admin
     ],
 }
 
-
+# JWT Settings
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # Short-lived access tokens
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # 7-day refresh tokens
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
+
+# Email verification settings
+EMAIL_VERIFICATION_TOKEN_EXPIRY = 24  # hours
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+
+# Email settings for verification
+EMAIL_VERIFICATION_URL = env(
+    "EMAIL_VERIFICATION_URL", default="http://localhost:8000/api/v1/auth/verify-email"
+)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@corrisonapi.com")
 
 TINYMCE_DEFAULT_CONFIG = {
     "height": 650,
@@ -187,7 +197,6 @@ DATABASES = {
         "PORT": env("DATABASE_PORT", default="5432"),
     }
 }
-
 
 # Appointments settings
 CALENDAR_SETTINGS = {

@@ -1,4 +1,4 @@
-# Update api/urls.py to include courses API endpoints
+# Update api/urls.py to include auth endpoints
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
@@ -20,6 +20,9 @@ from courses.views import (
     LessonViewSet,
 )
 from . import views
+
+# Import auth views
+from accounts import api_views as auth_views
 
 # Register viewsets with router
 router = DefaultRouter()
@@ -59,7 +62,21 @@ router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
 
 urlpatterns = [
     path("", include(router.urls)),
-    # Custom API endpoints
+    # Authentication endpoints
+    path("auth/register/", auth_views.register, name="auth-register"),
+    path("auth/login/", auth_views.login, name="auth-login"),
+    path("auth/logout/", auth_views.logout, name="auth-logout"),
+    path(
+        "auth/verify-email/<str:token>/", auth_views.verify_email, name="verify-email"
+    ),
+    path(
+        "auth/resend-verification/",
+        auth_views.resend_verification,
+        name="resend-verification",
+    ),
+    path("auth/profile/", auth_views.user_profile, name="user-profile"),
+    path("auth/change-password/", auth_views.change_password, name="change-password"),
+    # Existing custom API endpoints
     path("cart/add/", views.add_to_cart, name="add-to-cart"),
     path("cart/update/", views.update_cart_item, name="update-cart-item"),
     path("cart/remove/", views.remove_cart_item, name="remove-cart-item"),
@@ -76,7 +93,7 @@ urlpatterns = [
         name="placeholder-image",
     ),
     # Appointments public API endpoints
-    path("appointments/", include("appointments.urls")),
+    path("appointments-booking/", include("appointments.urls")),
     # Courses nested endpoints
     path("courses/", include("courses.urls")),
 ]

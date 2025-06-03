@@ -15,8 +15,8 @@ router.register(r"appointments", views.AppointmentViewSet, basename="appointment
 app_name = "appointments"
 
 urlpatterns = [
-    # Authenticated API endpoints
-    path("api/", include(router.urls)),
+    # Authenticated API endpoints - use different namespace
+    path("api/private/", include(router.urls)),
     # Public booking API endpoints
     path(
         "api/public/<str:username>/",
