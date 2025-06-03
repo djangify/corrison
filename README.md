@@ -13,7 +13,7 @@ A modular, API-first headless platform built with Django REST Framework backend 
 * **Pages**: CMS-powered landing pages with advanced features
 * **LinkHub**: Structured "link-in-bio" pages with multi-media support
 * **Testimonials**: Global testimonial management with star ratings
-* **COMING SOON**: Events API and Calendar API
+* **NEW ADDITION**: Calendar API
 
 ## 🌐 Live Examples
 

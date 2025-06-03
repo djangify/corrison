@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "blog.apps.BlogConfig",
     "pages.apps.PagesConfig",
     "linkhub.apps.LinkhubConfig",
+    "appointments.apps.AppointmentsConfig",
 ]
 
 MIDDLEWARE = [
@@ -185,3 +186,19 @@ DATABASES = {
         "PORT": env("DATABASE_PORT", default="5432"),
     }
 }
+
+
+# Appointments settings
+CALENDAR_SETTINGS = {
+    "DEFAULT_TIMEZONE": "UTC",
+    "DEFAULT_BOOKING_WINDOW_DAYS": 30,
+    "DEFAULT_BUFFER_MINUTES": 15,
+    "MIN_APPOINTMENT_DURATION": 15,  # minutes
+    "MAX_APPOINTMENT_DURATION": 480,  # 8 hours
+    "ENABLE_EMAIL_NOTIFICATIONS": True,
+    "ENABLE_SMS_NOTIFICATIONS": False,  # Future feature
+}
+
+# Email settings for appointments notifications
+if not hasattr(locals(), "SITE_URL"):
+    SITE_URL = "http://localhost:8000"  # Override in production settings
