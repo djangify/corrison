@@ -435,3 +435,38 @@ def calculate_available_slots(calendar_user, appointment_type, start_date, end_d
         current_date += timedelta(days=1)
 
     return available_slots
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_default_calendar(request):
+    """
+    Get the first active calendar user as default
+    """
+    try:
+        # Get the first active calendar user
+        calendar_user = (
+            CalendarUser.objects.filter(is_calendar_active=True)
+            .select_related("user")
+            .first()
+        )
+
+        if not calendar_user:
+            return Response(
+                {"error": "No active calendars available"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            {
+                "username": calendar_user.user.username,
+                "display_name": calendar_user.display_name,
+                "business_name": calendar_user.business_name,
+            }
+        )
+
+    except Exception:
+        return Response(
+            {"error": "Failed to load default calendar"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

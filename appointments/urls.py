@@ -39,4 +39,9 @@ urlpatterns = [
         views.cancel_customer_appointment,
         name="cancel-appointment",
     ),
+    path(
+        "api/public/default/",
+        views.get_default_calendar,
+        name="default-calendar",
+    ),
 ]
