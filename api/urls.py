@@ -1,5 +1,4 @@
 # Update api/urls.py to include auth endpoints
-
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from accounts.views import WishlistViewSet
@@ -19,10 +18,13 @@ from courses.views import (
     EnrollmentViewSet,
     LessonViewSet,
 )
-from . import views
 
-# Import auth views
+from . import views
+from courses import views as courses_views
 from accounts import api_views as auth_views
+
+# Import appointment views for public endpoints
+from appointments import views as appointments_views
 
 # Register viewsets with router
 router = DefaultRouter()
@@ -38,6 +40,7 @@ router.register(r"testimonials", TestimonialViewSet, basename="testimonial")
 router.register(r"linkhubs", LinkHubViewSet, basename="linkhub")
 router.register(r"cart", CartViewSet, basename="cart")
 router.register(r"items", CartItemViewSet, basename="cart-item")
+
 
 # Appointments endpoints
 router.register(r"appointments/profiles", CalendarUserViewSet, basename="calendar-user")
@@ -93,7 +96,62 @@ urlpatterns = [
         name="placeholder-image",
     ),
     # Appointments public API endpoints
-    path("appointments-booking/", include("appointments.urls")),
+    path(
+        "appointments-booking/api/public/<str:username>/",
+        appointments_views.get_calendar_user,
+        name="public-calendar-user",
+    ),
+    path(
+        "appointments-booking/api/public/<str:username>/slots/",
+        appointments_views.get_available_slots,
+        name="available-slots",
+    ),
+    path(
+        "appointments-booking/api/public/book/",
+        appointments_views.book_appointment,
+        name="book-appointment",
+    ),
+    path(
+        "appointments-booking/api/public/appointment/<int:appointment_id>/",
+        appointments_views.get_customer_appointment,
+        name="customer-appointment",
+    ),
+    path(
+        "appointments-booking/api/public/appointment/<int:appointment_id>/cancel/",
+        appointments_views.cancel_customer_appointment,
+        name="cancel-appointment",
+    ),
+    path(
+        "appointments-booking/api/public/default/",
+        appointments_views.get_default_calendar,
+        name="default-calendar",
+    ),
+    path(
+        "appointments-booking/api/public/available/",
+        appointments_views.get_available_calendars,
+        name="available-calendars",
+    ),
     # Courses nested endpoints
-    path("courses/", include("courses.urls")),
+    path(
+        "courses/<str:course_slug>/lessons/",
+        courses_views.LessonViewSet.as_view({"get": "list", "post": "create"}),
+        name="course-lessons-list",
+    ),
+    path(
+        "courses/<str:course_slug>/lessons/<str:slug>/",
+        courses_views.LessonViewSet.as_view(
+            {
+                "get": "retrieve",
+                "put": "update",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+        name="course-lessons-detail",
+    ),
+    path(
+        "courses/<str:course_slug>/lessons/<str:slug>/complete/",
+        courses_views.LessonViewSet.as_view({"post": "complete"}),
+        name="course-lessons-complete",
+    ),
 ]

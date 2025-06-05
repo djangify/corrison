@@ -444,6 +444,26 @@ def get_default_calendar(request):
     Get the first active calendar user as default
     """
     try:
+        # Debug: Check all calendar users
+        all_calendars = CalendarUser.objects.all()
+        active_calendars = CalendarUser.objects.filter(is_calendar_active=True)
+
+        debug_info = {
+            "total_calendars": all_calendars.count(),
+            "active_calendars": active_calendars.count(),
+            "calendar_details": [],
+        }
+
+        for cal in all_calendars:
+            debug_info["calendar_details"].append(
+                {
+                    "id": cal.id,
+                    "username": cal.user.username if cal.user else "NO_USER",
+                    "is_active": cal.is_calendar_active,
+                    "display_name": cal.display_name,
+                }
+            )
+
         # Get the first active calendar user
         calendar_user = (
             CalendarUser.objects.filter(is_calendar_active=True)
@@ -453,7 +473,7 @@ def get_default_calendar(request):
 
         if not calendar_user:
             return Response(
-                {"error": "No active calendars available"},
+                {"error": "No active calendars available", "debug": debug_info},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -462,11 +482,38 @@ def get_default_calendar(request):
                 "username": calendar_user.user.username,
                 "display_name": calendar_user.display_name,
                 "business_name": calendar_user.business_name,
+                "debug": debug_info,
             }
         )
 
-    except Exception:
+    except Exception as e:
         return Response(
-            {"error": "Failed to load default calendar"},
+            {
+                "error": f"Failed to load default calendar: {str(e)}",
+                "debug": {"exception": str(e)},
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_available_calendars(request):
+    """
+    Get all active calendar users available for booking
+    """
+    calendar_users = CalendarUser.objects.filter(
+        is_calendar_active=True
+    ).select_related("user")
+
+    calendars = []
+    for calendar_user in calendar_users:
+        calendars.append(
+            {
+                "username": calendar_user.user.username,
+                "display_name": calendar_user.display_name,
+                "business_name": calendar_user.business_name,
+            }
+        )
+
+    return Response(calendars)

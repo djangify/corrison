@@ -1,15 +1,15 @@
+## urls for main corrison project.
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.views.static import serve
-from rest_framework import permissions
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("api.urls")),
     path("", TemplateView.as_view(template_name="index.html"), name="home"),
-    path("appointments/", include("appointments.urls")),
     path("tinymce/", include("tinymce.urls")),
     path(
         "media/<path:path>",
