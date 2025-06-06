@@ -126,6 +126,8 @@ class CourseListSerializer(serializers.ModelSerializer):
             "total_enrollments",
             "is_enrolled",
             "progress_percentage",
+            "external_course_url",
+            "external_platform",
             "created_at",
         ]
 
@@ -193,6 +195,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "is_enrolled",
             "progress_percentage",
             "next_lesson",
+            "external_course_url",
+            "external_platform",
             "created_at",
             "updated_at",
         ]
@@ -386,4 +390,6 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
             "order",
             "is_preview",
             "is_published",
+            "external_course_url",
+            "external_platform",
         ]

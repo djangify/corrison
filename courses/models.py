@@ -70,7 +70,12 @@ class Course(SluggedModel, TimestampedModel, PublishableModel, SEOModel):
     short_description = models.CharField(
         max_length=300, help_text="Brief description for course cards"
     )
-
+    external_course_url = models.URLField(
+        blank=True, null=True, help_text="Link to paid course on Udemy, Teachable, etc."
+    )
+    external_platform = models.CharField(
+        max_length=50, blank=True, help_text="e.g., 'Udemy', 'Teachable', 'Skillshare'"
+    )
     # Course Details
     difficulty = models.CharField(
         max_length=12, choices=DIFFICULTY_CHOICES, default="beginner"
