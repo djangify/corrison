@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Count, Q
-from .models import Course, Lesson, Enrollment, Category
+from .models import Course, Lesson, Enrollment, Category, CourseSettings
 from .serializers import (
     CourseListSerializer,
     CourseDetailSerializer,
@@ -16,6 +16,7 @@ from .serializers import (
     CategorySerializer,
     CourseCreateUpdateSerializer,
     LessonCreateUpdateSerializer,
+    CourseSettingsSerializer,
 )
 
 
@@ -336,3 +337,22 @@ class EnrollmentViewSet(viewsets.ReadOnlyModelViewSet):
                 "completed_at": enrollment.completed_at,
             }
         )
+
+
+class CourseSettingsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for course page settings (read-only)
+    """
+
+    serializer_class = CourseSettingsSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        # Return the single settings instance
+        return CourseSettings.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        """Return the single settings instance as detail"""
+        settings = CourseSettings.get_settings()
+        serializer = self.get_serializer(settings)
+        return Response(serializer.data)

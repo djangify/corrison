@@ -321,3 +321,91 @@ class Enrollment(TimestampedModel):
     def is_lesson_completed(self, lesson_id):
         """Check if a lesson is completed"""
         return lesson_id in self.progress_data.get("completed_lessons", [])
+
+
+class CourseSettings(TimestampedModel):
+    """
+    Singleton model for course page settings.
+    Only one instance should exist.
+    """
+
+    page_title = models.CharField(
+        max_length=200,
+        default="Learn New Skills",
+        help_text="Main heading for the courses page",
+    )
+    page_subtitle = models.CharField(
+        max_length=300, blank=True, help_text="Optional subtitle below the main heading"
+    )
+    page_description = models.TextField(
+        default="Discover our comprehensive collection of courses designed to help you learn and grow. From beginner to advanced levels, find the perfect course for your journey.",
+        help_text="Description text below the heading",
+    )
+
+    # External course links
+    external_course_1_title = models.CharField(
+        max_length=100, blank=True, help_text="Title for first external course link"
+    )
+    external_course_1_url = models.URLField(
+        blank=True, help_text="URL for first external course"
+    )
+    external_course_2_title = models.CharField(
+        max_length=100, blank=True, help_text="Title for second external course link"
+    )
+    external_course_2_url = models.URLField(
+        blank=True, help_text="URL for second external course"
+    )
+    external_course_3_title = models.CharField(
+        max_length=100, blank=True, help_text="Title for third external course link"
+    )
+    external_course_3_url = models.URLField(
+        blank=True, help_text="URL for third external course"
+    )
+
+    class Meta:
+        verbose_name = "Course Page Settings"
+        verbose_name_plural = "Course Page Settings"
+
+    def __str__(self):
+        return "Course Page Settings"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists"""
+        if not self.pk and CourseSettings.objects.exists():
+            # If this is a new instance and one already exists, update the existing one
+            existing = CourseSettings.objects.first()
+            existing.page_title = self.page_title
+            existing.page_subtitle = self.page_subtitle
+            existing.page_description = self.page_description
+            existing.external_course_1_title = self.external_course_1_title
+            existing.external_course_1_url = self.external_course_1_url
+            existing.external_course_2_title = self.external_course_2_title
+            existing.external_course_2_url = self.external_course_2_url
+            existing.external_course_3_title = self.external_course_3_title
+            existing.external_course_3_url = self.external_course_3_url
+            existing.save()
+            return existing
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create the settings instance"""
+        settings, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "page_title": "Learn New Skills",
+                "page_description": "Discover our comprehensive collection of courses designed to help you learn and grow. From beginner to advanced levels, find the perfect course for your journey.",
+            },
+        )
+        return settings
+
+    @property
+    def external_courses(self):
+        """Return list of external courses that have both title and URL"""
+        courses = []
+        for i in range(1, 4):  # 1, 2, 3
+            title = getattr(self, f"external_course_{i}_title")
+            url = getattr(self, f"external_course_{i}_url")
+            if title and url:
+                courses.append({"title": title, "url": url})
+        return courses

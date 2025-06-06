@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Course, Lesson, Enrollment, Category
+from .models import Course, Lesson, Enrollment, Category, CourseSettings
 
 User = get_user_model()
 
@@ -393,3 +393,13 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
             "external_course_url",
             "external_platform",
         ]
+
+
+class CourseSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for course page settings"""
+
+    external_courses = serializers.ReadOnlyField()  # Uses the property method
+
+    class Meta:
+        model = CourseSettings
+        fields = ["page_title", "page_subtitle", "page_description", "external_courses"]

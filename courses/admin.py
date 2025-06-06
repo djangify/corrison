@@ -3,7 +3,7 @@ from django.db import models
 from django.utils.html import format_html
 from django.urls import reverse
 from tinymce.widgets import TinyMCE
-from .models import Category, Course, Lesson, Enrollment
+from .models import Category, Course, Lesson, Enrollment, CourseSettings
 
 
 class LessonInline(admin.TabularInline):
@@ -291,3 +291,52 @@ class EnrollmentAdmin(admin.ModelAdmin):
         return (
             super().get_queryset(request).select_related("user", "course__instructor")
         )
+
+
+@admin.register(CourseSettings)
+class CourseSettingsAdmin(admin.ModelAdmin):
+    """
+    Admin for course page settings - singleton model
+    """
+
+    def has_add_permission(self, request):
+        """Only allow adding if no instance exists"""
+        return not CourseSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Don't allow deletion of settings"""
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the single instance edit page"""
+        try:
+            settings = CourseSettings.get_settings()
+            return self.changeform_view(request, str(settings.pk))
+        except Exception:
+            return super().changelist_view(request, extra_context)
+
+    fieldsets = (
+        (
+            "Page Content",
+            {
+                "fields": ("page_title", "page_subtitle", "page_description"),
+                "description": "Main content for the courses page header",
+            },
+        ),
+        (
+            "External Course Links",
+            {
+                "fields": (
+                    ("external_course_1_title", "external_course_1_url"),
+                    ("external_course_2_title", "external_course_2_url"),
+                    ("external_course_3_title", "external_course_3_url"),
+                ),
+                "description": "Links to external courses (e.g., paid courses on Udemy, Teachable, etc.)",
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    formfield_overrides = {
+        models.TextField: {"widget": TinyMCE(attrs={"cols": 80, "rows": 10})},
+    }

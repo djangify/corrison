@@ -5,6 +5,8 @@ from accounts.views import WishlistViewSet
 from blog.views import BlogPostViewSet
 from linkhub.views import LinkHubViewSet
 from pages.views import PageViewSet, TestimonialViewSet
+from courses import views as courses_views
+from accounts import api_views as auth_views
 from cart.views import CartViewSet, CartItemViewSet
 from appointments.views import (
     CalendarUserViewSet,
@@ -16,12 +18,10 @@ from courses.views import (
     CategoryViewSet as CourseCategoryViewSet,
     CourseViewSet,
     EnrollmentViewSet,
-    LessonViewSet,
+    CourseSettingsViewSet,
 )
 
 from . import views
-from courses import views as courses_views
-from accounts import api_views as auth_views
 
 # Import appointment views for public endpoints
 from appointments import views as appointments_views
@@ -61,6 +61,7 @@ router.register(
 )
 router.register(r"courses", CourseViewSet, basename="course")
 router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
+router.register(r"course-settings", CourseSettingsViewSet, basename="course-settings")
 
 urlpatterns = [
     path("", include(router.urls)),
