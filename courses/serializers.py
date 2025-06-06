@@ -21,11 +21,15 @@ class InstructorSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     """Course category serializer"""
 
-    course_count = serializers.IntegerField(read_only=True)
+    course_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
         fields = ["id", "name", "slug", "description", "color", "icon", "course_count"]
+
+    def get_course_count(self, obj):
+        # Use the annotated field if available, otherwise fall back to the property
+        return getattr(obj, "published_course_count", obj.course_count)
 
 
 class LessonSerializer(serializers.ModelSerializer):

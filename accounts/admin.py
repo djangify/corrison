@@ -10,6 +10,19 @@ class ProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = "Profile"
     readonly_fields = ("email_verification_token", "email_verification_sent_at")
+    extra = 0  # Don't show extra empty forms
+    max_num = 1  # Only allow one profile per user
+
+    def get_queryset(self, request):
+        """Ensure we get the existing profile if it exists"""
+        qs = super().get_queryset(request)
+        return qs
+
+    def has_add_permission(self, request, obj=None):
+        """Only allow adding profile if user doesn't have one"""
+        if obj and hasattr(obj, "profile"):
+            return False
+        return super().has_add_permission(request, obj)
 
 
 class CustomUserAdmin(UserAdmin):
@@ -30,6 +43,16 @@ class CustomUserAdmin(UserAdmin):
         return format_html('<span style="color: red;">✗ Not Verified</span>')
 
     email_verified_status.short_description = "Email Status"
+
+    def save_model(self, request, obj, form, change):
+        """Save the user first, then handle profile via signal"""
+        super().save_model(request, obj, form, change)
+
+        # Ensure profile exists (signal should handle this, but just in case)
+        if not hasattr(obj, "profile"):
+            Profile.objects.get_or_create(
+                user=obj, defaults={"email_verified": obj.is_superuser}
+            )
 
 
 # Re-register UserAdmin with the updated class

@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -25,7 +25,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     queryset = Category.objects.annotate(
-        course_count=Count("courses", filter=Q(courses__is_published=True))
+        published_course_count=Count("courses", filter=Q(courses__is_published=True))
     ).order_by("order", "name")
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]
