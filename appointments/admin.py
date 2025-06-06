@@ -41,10 +41,18 @@ class CalendarUserAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Default Availability",
+            "Weekly Availability",
             {
-                "fields": ("default_availability",),
-                "classes": ("collapse",),
+                "fields": (
+                    ("monday_enabled", "monday_start", "monday_end"),
+                    ("tuesday_enabled", "tuesday_start", "tuesday_end"),
+                    ("wednesday_enabled", "wednesday_start", "wednesday_end"),
+                    ("thursday_enabled", "thursday_start", "thursday_end"),
+                    ("friday_enabled", "friday_start", "friday_end"),
+                    ("saturday_enabled", "saturday_start", "saturday_end"),
+                    ("sunday_enabled", "sunday_start", "sunday_end"),
+                ),
+                "description": "Set your default weekly schedule. Use Availability Overrides to modify specific dates.",
             },
         ),
         (

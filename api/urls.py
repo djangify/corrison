@@ -41,8 +41,7 @@ router.register(r"linkhubs", LinkHubViewSet, basename="linkhub")
 router.register(r"cart", CartViewSet, basename="cart")
 router.register(r"items", CartItemViewSet, basename="cart-item")
 
-
-# Appointments endpoints
+# Appointments endpoints (authenticated - for calendar owners)
 router.register(r"appointments/profiles", CalendarUserViewSet, basename="calendar-user")
 router.register(
     r"appointments/appointment-types",
@@ -95,41 +94,37 @@ urlpatterns = [
         views.placeholder_image,
         name="placeholder-image",
     ),
-    # Appointments public API endpoints
+    # ============================================================
+    # APPOINTMENTS PUBLIC API - SINGLE USER SYSTEM (NO USERNAME)
+    # ============================================================
+    # Get calendar info (replaces username-specific endpoint)
     path(
-        "appointments-booking/api/public/<str:username>/",
-        appointments_views.get_calendar_user,
-        name="public-calendar-user",
+        "calendar/info/",
+        appointments_views.get_calendar_info,
+        name="calendar-info",
     ),
+    # Get available slots for booking
     path(
-        "appointments-booking/api/public/<str:username>/slots/",
+        "calendar/slots/",
         appointments_views.get_available_slots,
         name="available-slots",
     ),
+    # Book an appointment
     path(
-        "appointments-booking/api/public/book/",
+        "calendar/book/",
         appointments_views.book_appointment,
         name="book-appointment",
     ),
+    # Customer appointment management (requires email verification)
     path(
-        "appointments-booking/api/public/appointment/<int:appointment_id>/",
+        "calendar/appointment/<int:appointment_id>/",
         appointments_views.get_customer_appointment,
         name="customer-appointment",
     ),
     path(
-        "appointments-booking/api/public/appointment/<int:appointment_id>/cancel/",
+        "calendar/appointment/<int:appointment_id>/cancel/",
         appointments_views.cancel_customer_appointment,
         name="cancel-appointment",
-    ),
-    path(
-        "appointments-booking/api/public/default/",
-        appointments_views.get_default_calendar,
-        name="default-calendar",
-    ),
-    path(
-        "appointments-booking/api/public/available/",
-        appointments_views.get_available_calendars,
-        name="available-calendars",
     ),
     # Courses nested endpoints
     path(

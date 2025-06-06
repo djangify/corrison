@@ -3,15 +3,14 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from datetime import datetime, timedelta
-import json
+from datetime import datetime, timedelta, time
 
 User = get_user_model()
 
 
 class CalendarUser(models.Model):
     """
-    Extended user profile for calendar functionality
+    Extended user profile for calendar functionality - Single User System
     """
 
     user = models.OneToOneField(
@@ -30,16 +29,40 @@ class CalendarUser(models.Model):
         default=15, help_text="Buffer time between appointments in minutes"
     )
     is_calendar_active = models.BooleanField(
-        default=True, help_text="Whether this user's calendar is accepting bookings"
+        default=True, help_text="Whether this calendar is accepting bookings"
     )
     booking_instructions = models.TextField(
         blank=True, help_text="Instructions shown to customers when booking"
     )
 
-    # Default availability rules (JSON field)
-    default_availability = models.JSONField(
-        default=dict, help_text="Default weekly availability pattern"
-    )
+    # Default weekly availability - proper fields instead of JSON
+    monday_enabled = models.BooleanField(default=True)
+    monday_start = models.TimeField(default=time(9, 0))  # 9:00 AM
+    monday_end = models.TimeField(default=time(17, 0))  # 5:00 PM
+
+    tuesday_enabled = models.BooleanField(default=True)
+    tuesday_start = models.TimeField(default=time(9, 0))
+    tuesday_end = models.TimeField(default=time(17, 0))
+
+    wednesday_enabled = models.BooleanField(default=True)
+    wednesday_start = models.TimeField(default=time(9, 0))
+    wednesday_end = models.TimeField(default=time(17, 0))
+
+    thursday_enabled = models.BooleanField(default=True)
+    thursday_start = models.TimeField(default=time(9, 0))
+    thursday_end = models.TimeField(default=time(17, 0))
+
+    friday_enabled = models.BooleanField(default=True)
+    friday_start = models.TimeField(default=time(9, 0))
+    friday_end = models.TimeField(default=time(17, 0))
+
+    saturday_enabled = models.BooleanField(default=False)
+    saturday_start = models.TimeField(default=time(10, 0))  # 10:00 AM
+    saturday_end = models.TimeField(default=time(15, 0))  # 3:00 PM
+
+    sunday_enabled = models.BooleanField(default=False)
+    sunday_start = models.TimeField(default=time(12, 0))  # 12:00 PM
+    sunday_end = models.TimeField(default=time(16, 0))  # 4:00 PM
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -55,6 +78,52 @@ class CalendarUser(models.Model):
     def display_name(self):
         """Return business name or username for display"""
         return self.business_name or self.user.get_full_name() or self.user.username
+
+    def get_day_availability(self, day_name):
+        """Get availability for a specific day of the week"""
+        day_name = day_name.lower()
+        if hasattr(self, f"{day_name}_enabled"):
+            return {
+                "enabled": getattr(self, f"{day_name}_enabled"),
+                "start": getattr(self, f"{day_name}_start"),
+                "end": getattr(self, f"{day_name}_end"),
+            }
+        return {"enabled": False, "start": None, "end": None}
+
+    def is_available_on_day(self, weekday):
+        """Check if calendar is available on a specific weekday (0=Monday, 6=Sunday)"""
+        day_names = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]
+        if 0 <= weekday <= 6:
+            day_name = day_names[weekday]
+            return getattr(self, f"{day_name}_enabled", False)
+        return False
+
+    def get_day_hours(self, weekday):
+        """Get start/end hours for a specific weekday"""
+        day_names = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]
+        if 0 <= weekday <= 6:
+            day_name = day_names[weekday]
+            return (
+                getattr(self, f"{day_name}_start", None),
+                getattr(self, f"{day_name}_end", None),
+            )
+        return None, None
 
 
 class AppointmentType(models.Model):
@@ -100,7 +169,7 @@ class AppointmentType(models.Model):
 
 class Availability(models.Model):
     """
-    Specific availability for a calendar user
+    Specific availability for a calendar user (overrides default weekly schedule)
     """
 
     RECURRING_CHOICES = [
@@ -117,7 +186,8 @@ class Availability(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
     is_available = models.BooleanField(
-        default=True, help_text="False = blocked time, True = available time"
+        default=True,
+        help_text="False = blocked time, True = available time (overrides default schedule)",
     )
     recurring_pattern = models.CharField(
         max_length=10, choices=RECURRING_CHOICES, default="none"
@@ -134,8 +204,8 @@ class Availability(models.Model):
 
     class Meta:
         ordering = ["date", "start_time"]
-        verbose_name = "Availability"
-        verbose_name_plural = "Availability Slots"
+        verbose_name = "Availability Override"
+        verbose_name_plural = "Availability Overrides"
         unique_together = ["calendar_user", "date", "start_time", "end_time"]
 
     def __str__(self):

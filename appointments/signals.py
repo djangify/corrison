@@ -1,5 +1,5 @@
 # appointments/signals.py
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -18,7 +18,7 @@ def create_calendar_user(sender, instance, created, **kwargs):
         calendar_user = CalendarUser.objects.create(
             user=instance,
             business_name=instance.get_full_name() or instance.username,
-            is_calendar_active=False,  # Inactive by default
+            is_calendar_active=False,  # Inactive by default until user configures it
         )
 
         # Create default booking settings
@@ -58,6 +58,9 @@ def send_appointment_confirmation_email(appointment):
 
     subject = f"Appointment Booked - {appointment.appointment_type.name}"
 
+    # Get the site URL
+    site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+
     message = f"""
 Dear {appointment.customer_name},
 
@@ -77,7 +80,7 @@ Status: {appointment.get_status_display()}
 {f"Notes: {appointment.customer_notes}" if appointment.customer_notes else ""}
 
 To view or cancel your appointment, visit:
-{settings.SITE_URL}/appointments/appointment/{appointment.id}/?email={appointment.customer_email}
+{site_url}/calendar/appointment/{appointment.id}/?email={appointment.customer_email}
 
 Thank you for booking with us!
 
@@ -110,6 +113,9 @@ def send_new_appointment_notification_to_owner(appointment):
 
     subject = f"New Appointment Booked - {appointment.appointment_type.name}"
 
+    # Get the site URL
+    site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+
     message = f"""
 You have a new appointment booking!
 
@@ -127,7 +133,7 @@ Appointment Details:
 {f"Payment Required: ${appointment.payment_amount}" if appointment.payment_required else ""}
 
 To manage this appointment, visit your admin panel:
-{settings.SITE_URL}/admin/appointments/appointment/{appointment.id}/change/
+{site_url}/admin/appointments/appointment/{appointment.id}/change/
 
 Best regards,
 Your Calendar System
@@ -157,6 +163,9 @@ def send_appointment_confirmed_email(appointment):
 
     subject = f"Appointment Confirmed - {appointment.appointment_type.name}"
 
+    # Get the site URL
+    site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+
     message = f"""
 Dear {appointment.customer_name},
 
@@ -171,7 +180,7 @@ Appointment Details:
 {calendar_user.booking_instructions if calendar_user.booking_instructions else ""}
 
 To view or cancel your appointment, visit:
-{settings.SITE_URL}/appointments/appointment/{appointment.id}/?email={appointment.customer_email}
+{site_url}/calendar/appointment/{appointment.id}/?email={appointment.customer_email}
 
 We look forward to seeing you!
 
@@ -197,6 +206,9 @@ def send_appointment_cancelled_email(appointment):
     """
     subject = f"Appointment Cancelled - {appointment.appointment_type.name}"
 
+    # Get the site URL
+    site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+
     message = f"""
 Dear {appointment.customer_name},
 
@@ -208,7 +220,7 @@ Cancelled Appointment:
 - Time: {appointment.start_time.strftime("%I:%M %p")} - {appointment.end_time.strftime("%I:%M %p")}
 
 If you need to reschedule, please visit our booking page:
-{settings.SITE_URL}/book/{appointment.calendar_user.user.username}/
+{site_url}/calendar/
 
 Thank you for your understanding.
 

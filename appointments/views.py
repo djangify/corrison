@@ -3,20 +3,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
-# from django.shortcuts import get_object_or_404
 from django.utils import timezone
-
-# from django.db.models import Q
 from datetime import datetime, timedelta
-# import pytz
 
 from .models import (
     CalendarUser,
     AppointmentType,
     Availability,
     Appointment,
-    # BookingSettings,
 )
 from .serializers import (
     CalendarUserSerializer,
@@ -27,7 +21,6 @@ from .serializers import (
     BookAppointmentSerializer,
     CustomerAppointmentSerializer,
     AvailableSlotSerializer,
-    # BookingSettingsSerializer,
 )
 
 
@@ -180,8 +173,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             appointment.confirmed_at = timezone.now()
             appointment.save()
 
-            # TODO: Send confirmation email to customer
-
             serializer = self.get_serializer(appointment)
             return Response(serializer.data)
 
@@ -199,8 +190,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             appointment.cancelled_at = timezone.now()
             appointment.save()
 
-            # TODO: Send cancellation email to customer
-
             serializer = self.get_serializer(appointment)
             return Response(serializer.data)
 
@@ -210,42 +199,54 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         )
 
 
-# Public API endpoints (no authentication required)
+# Public API endpoints (no authentication required for booking)
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def get_calendar_user(request, username):
+def get_calendar_info(request):
     """
-    Get public calendar information for a user
+    Get calendar information for booking (single user system)
     """
     try:
+        # Get the first active calendar user (since it's single user)
         calendar_user = (
             CalendarUser.objects.select_related("user")
             .prefetch_related("appointment_types", "booking_settings")
-            .get(user__username=username, is_calendar_active=True)
+            .filter(is_calendar_active=True)
+            .first()
         )
+
+        if not calendar_user:
+            return Response(
+                {"error": "No active calendar found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         serializer = CalendarUserPublicSerializer(calendar_user)
         return Response(serializer.data)
 
-    except CalendarUser.DoesNotExist:
+    except Exception as e:
         return Response(
-            {"error": "Calendar not found or not active"},
-            status=status.HTTP_404_NOT_FOUND,
+            {"error": f"Failed to load calendar: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def get_available_slots(request, username):
+def get_available_slots(request):
     """
-    Get available time slots for a calendar user
+    Get available time slots for booking
     """
     try:
-        calendar_user = CalendarUser.objects.get(
-            user__username=username, is_calendar_active=True
-        )
+        # Get the active calendar user
+        calendar_user = CalendarUser.objects.filter(is_calendar_active=True).first()
+
+        if not calendar_user:
+            return Response(
+                {"error": "No active calendar found"}, status=status.HTTP_404_NOT_FOUND
+            )
     except CalendarUser.DoesNotExist:
         return Response(
             {"error": "Calendar not found"}, status=status.HTTP_404_NOT_FOUND
@@ -334,7 +335,6 @@ def get_customer_appointment(request, appointment_id):
 
     try:
         appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
-
         serializer = CustomerAppointmentSerializer(appointment)
         return Response(serializer.data)
 
@@ -365,8 +365,6 @@ def cancel_customer_appointment(request, appointment_id):
             appointment.cancelled_at = timezone.now()
             appointment.save()
 
-            # TODO: Send cancellation confirmation email
-
             serializer = CustomerAppointmentSerializer(appointment)
             return Response(serializer.data)
         else:
@@ -383,16 +381,40 @@ def cancel_customer_appointment(request, appointment_id):
 
 def calculate_available_slots(calendar_user, appointment_type, start_date, end_date):
     """
-    Calculate available time slots for a given period
+    Calculate available time slots using weekly schedule + overrides
     """
     available_slots = []
     current_date = start_date
 
     while current_date <= end_date:
-        # Get availability for this date
-        availability_slots = Availability.objects.filter(
-            calendar_user=calendar_user, date=current_date, is_available=True
+        # Check if this is a weekday the calendar is open
+        weekday = current_date.weekday()  # 0=Monday, 6=Sunday
+
+        if not calendar_user.is_available_on_day(weekday):
+            current_date += timedelta(days=1)
+            continue
+
+        # Get default hours for this day
+        day_start, day_end = calendar_user.get_day_hours(weekday)
+
+        if not day_start or not day_end:
+            current_date += timedelta(days=1)
+            continue
+
+        # Check for availability overrides for this specific date
+        availability_overrides = Availability.objects.filter(
+            calendar_user=calendar_user, date=current_date
         )
+
+        # If there are overrides, use them instead of default schedule
+        if availability_overrides.exists():
+            available_periods = []
+            for override in availability_overrides:
+                if override.is_available:
+                    available_periods.append((override.start_time, override.end_time))
+        else:
+            # Use default weekly schedule
+            available_periods = [(day_start, day_end)]
 
         # Get existing appointments for this date
         existing_appointments = Appointment.objects.filter(
@@ -401,10 +423,10 @@ def calculate_available_slots(calendar_user, appointment_type, start_date, end_d
             status__in=["pending", "confirmed"],
         )
 
-        # For each availability slot, calculate free time slots
-        for availability in availability_slots:
-            slot_start = datetime.combine(current_date, availability.start_time)
-            slot_end = datetime.combine(current_date, availability.end_time)
+        # For each available period, calculate free time slots
+        for period_start, period_end in available_periods:
+            slot_start = datetime.combine(current_date, period_start)
+            slot_end = datetime.combine(current_date, period_end)
             duration = timedelta(minutes=appointment_type.duration_minutes)
             buffer_time = timedelta(minutes=calendar_user.buffer_minutes)
 
@@ -435,85 +457,3 @@ def calculate_available_slots(calendar_user, appointment_type, start_date, end_d
         current_date += timedelta(days=1)
 
     return available_slots
-
-
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def get_default_calendar(request):
-    """
-    Get the first active calendar user as default
-    """
-    try:
-        # Debug: Check all calendar users
-        all_calendars = CalendarUser.objects.all()
-        active_calendars = CalendarUser.objects.filter(is_calendar_active=True)
-
-        debug_info = {
-            "total_calendars": all_calendars.count(),
-            "active_calendars": active_calendars.count(),
-            "calendar_details": [],
-        }
-
-        for cal in all_calendars:
-            debug_info["calendar_details"].append(
-                {
-                    "id": cal.id,
-                    "username": cal.user.username if cal.user else "NO_USER",
-                    "is_active": cal.is_calendar_active,
-                    "display_name": cal.display_name,
-                }
-            )
-
-        # Get the first active calendar user
-        calendar_user = (
-            CalendarUser.objects.filter(is_calendar_active=True)
-            .select_related("user")
-            .first()
-        )
-
-        if not calendar_user:
-            return Response(
-                {"error": "No active calendars available", "debug": debug_info},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        return Response(
-            {
-                "username": calendar_user.user.username,
-                "display_name": calendar_user.display_name,
-                "business_name": calendar_user.business_name,
-                "debug": debug_info,
-            }
-        )
-
-    except Exception as e:
-        return Response(
-            {
-                "error": f"Failed to load default calendar: {str(e)}",
-                "debug": {"exception": str(e)},
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def get_available_calendars(request):
-    """
-    Get all active calendar users available for booking
-    """
-    calendar_users = CalendarUser.objects.filter(
-        is_calendar_active=True
-    ).select_related("user")
-
-    calendars = []
-    for calendar_user in calendar_users:
-        calendars.append(
-            {
-                "username": calendar_user.user.username,
-                "display_name": calendar_user.display_name,
-                "business_name": calendar_user.business_name,
-            }
-        )
-
-    return Response(calendars)

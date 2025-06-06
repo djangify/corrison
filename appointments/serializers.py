@@ -15,7 +15,7 @@ User = get_user_model()
 
 
 class CalendarUserSerializer(serializers.ModelSerializer):
-    """Serializer for calendar user profiles"""
+    """Serializer for calendar user profiles (authenticated users)"""
 
     username = serializers.CharField(source="user.username", read_only=True)
     display_name = serializers.CharField(read_only=True)
@@ -32,8 +32,30 @@ class CalendarUserSerializer(serializers.ModelSerializer):
             "buffer_minutes",
             "is_calendar_active",
             "booking_instructions",
+            # Weekly availability fields
+            "monday_enabled",
+            "monday_start",
+            "monday_end",
+            "tuesday_enabled",
+            "tuesday_start",
+            "tuesday_end",
+            "wednesday_enabled",
+            "wednesday_start",
+            "wednesday_end",
+            "thursday_enabled",
+            "thursday_start",
+            "thursday_end",
+            "friday_enabled",
+            "friday_start",
+            "friday_end",
+            "saturday_enabled",
+            "saturday_start",
+            "saturday_end",
+            "sunday_enabled",
+            "sunday_start",
+            "sunday_end",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "username", "display_name"]
 
 
 class AppointmentTypeSerializer(serializers.ModelSerializer):
@@ -104,7 +126,7 @@ class AvailableSlotSerializer(serializers.Serializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    """Serializer for appointments"""
+    """Serializer for appointments (calendar owner view)"""
 
     appointment_type_name = serializers.CharField(
         source="appointment_type.name", read_only=True
@@ -196,7 +218,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
 class BookAppointmentSerializer(serializers.Serializer):
-    """Serializer for booking appointments (public API)"""
+    """Serializer for booking appointments (public API) - Single User System"""
 
     appointment_type_id = serializers.IntegerField()
     customer_name = serializers.CharField(max_length=200)
@@ -211,7 +233,15 @@ class BookAppointmentSerializer(serializers.Serializer):
     def validate_appointment_type_id(self, value):
         """Validate appointment type exists and is active"""
         try:
+            # In single user system, just check if appointment type exists and is active
             appointment_type = AppointmentType.objects.get(id=value, is_active=True)
+
+            # Also check if the calendar is active
+            if not appointment_type.calendar_user.is_calendar_active:
+                raise serializers.ValidationError(
+                    "Calendar is not currently accepting bookings"
+                )
+
             return value
         except AppointmentType.DoesNotExist:
             raise serializers.ValidationError("Invalid appointment type")
@@ -226,9 +256,25 @@ class BookAppointmentSerializer(serializers.Serializer):
         if date < timezone.now().date():
             raise serializers.ValidationError("Cannot book appointments in the past")
 
-        # Check if time slot is available
-        # This would typically check against existing appointments and availability
-        # For now, we'll do basic validation
+        # Check if the day is available in weekly schedule
+        calendar_user = appointment_type.calendar_user
+        weekday = date.weekday()
+
+        if not calendar_user.is_available_on_day(weekday):
+            day_names = [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            ]
+            raise serializers.ValidationError(
+                f"Calendar is not available on {day_names[weekday]}s"
+            )
+
+        # TODO: Add more sophisticated availability checking here
 
         return data
 
@@ -270,12 +316,15 @@ class BookingSettingsSerializer(serializers.ModelSerializer):
 
 
 class CalendarUserPublicSerializer(serializers.ModelSerializer):
-    """Public serializer for calendar user (for booking pages)"""
+    """Public serializer for calendar user (for booking pages) - Single User System"""
 
     username = serializers.CharField(source="user.username", read_only=True)
     display_name = serializers.CharField(read_only=True)
     appointment_types = AppointmentTypeListSerializer(many=True, read_only=True)
     booking_settings = BookingSettingsSerializer(read_only=True)
+
+    # Include weekly availability for frontend to understand schedule
+    weekly_schedule = serializers.SerializerMethodField()
 
     class Meta:
         model = CalendarUser
@@ -287,7 +336,34 @@ class CalendarUserPublicSerializer(serializers.ModelSerializer):
             "booking_instructions",
             "appointment_types",
             "booking_settings",
+            "weekly_schedule",
         ]
+
+    def get_weekly_schedule(self, obj):
+        """Return weekly schedule in a clean format"""
+        schedule = {}
+        days = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]
+
+        for day in days:
+            enabled = getattr(obj, f"{day}_enabled", False)
+            start_time = getattr(obj, f"{day}_start", None)
+            end_time = getattr(obj, f"{day}_end", None)
+
+            schedule[day] = {
+                "enabled": enabled,
+                "start": start_time.strftime("%H:%M") if start_time else None,
+                "end": end_time.strftime("%H:%M") if end_time else None,
+            }
+
+        return schedule
 
 
 class CustomerAppointmentSerializer(serializers.ModelSerializer):
