@@ -10,6 +10,8 @@ from .models import (
     Appointment,
     BookingSettings,
 )
+from django.db import models
+from tinymce.widgets import TinyMCE as RichTextEditorWidget
 
 
 @admin.register(CalendarUser)
@@ -103,6 +105,9 @@ class AppointmentTypeAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_active", "requires_payment", "calendar_user")
     search_fields = ("name", "description", "calendar_user__user__username")
+    formfield_overrides = {
+        models.TextField: {"widget": RichTextEditorWidget()},
+    }
     list_editable = ("order", "is_active")
     readonly_fields = ("created_at", "updated_at")
     inlines = [AppointmentInline]

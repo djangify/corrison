@@ -279,6 +279,15 @@ class Appointment(models.Model):
     )
     stripe_payment_intent_id = models.CharField(max_length=200, blank=True)
 
+    order = models.OneToOneField(
+        "checkout.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="appointment",
+        help_text="Associated order if this is a paid appointment",
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -49,6 +49,21 @@ class Order(TimestampedModel):
         help_text="Email for digital product delivery (if different from customer email)",
     )
 
+    # Appointment support - add these fields after admin_notes
+    appointment_type = models.ForeignKey(
+        "appointments.AppointmentType",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="orders",
+        help_text="If this order is for an appointment booking",
+    )
+    appointment_date = models.DateField(null=True, blank=True)
+    appointment_start_time = models.TimeField(null=True, blank=True)
+    appointment_customer_name = models.CharField(max_length=200, blank=True)
+    appointment_customer_phone = models.CharField(max_length=20, blank=True)
+    appointment_notes = models.TextField(blank=True)
+
     # Tracking info (only for physical items)
     shipping_method = models.CharField(max_length=100, blank=True, null=True)
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
@@ -126,6 +141,11 @@ class Order(TimestampedModel):
         Returns True if order contains only digital items.
         """
         return self.has_digital_items and not self.has_physical_items
+
+    @property
+    def is_appointment_order(self):
+        """Check if this order is for an appointment"""
+        return self.appointment_type is not None
 
     @property
     def requires_shipping(self):

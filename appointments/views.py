@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from datetime import datetime, timedelta
+from checkout.models import Order
 
 from .models import (
     CalendarUser,
@@ -294,23 +295,95 @@ def get_available_slots(request):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def book_appointment(request):
     """
-    Book an appointment (public endpoint)
+    Book an appointment - creates appointment and handles payment if needed
     """
+
     serializer = BookAppointmentSerializer(data=request.data)
 
     if serializer.is_valid():
         try:
-            appointment = serializer.save()
+            # Get appointment type to check if payment is required
+            appointment_type = AppointmentType.objects.get(
+                id=serializer.validated_data["appointment_type_id"]
+            )
 
-            # TODO: Send confirmation email
-            # TODO: If payment required, create Stripe payment intent
+            # Create the appointment (status will be 'pending' initially)
+            appointment_data = serializer.validated_data.copy()
+            appointment_data["appointment_type"] = appointment_type
 
-            response_serializer = CustomerAppointmentSerializer(appointment)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            # Calculate end time
+            start_datetime = datetime.combine(
+                appointment_data["date"], appointment_data["start_time"]
+            )
+            end_datetime = start_datetime + timedelta(
+                minutes=appointment_type.duration_minutes
+            )
+            appointment_data["end_time"] = end_datetime.time()
 
+            # Create appointment
+            appointment = Appointment.objects.create(**appointment_data)
+
+            # Check if payment is required
+            if appointment_type.requires_payment and appointment_type.price:
+                # Create order for paid appointment
+                order = Order.objects.create(
+                    user=request.user,
+                    # Appointment-specific fields
+                    appointment_type=appointment_type,
+                    appointment_date=appointment.date,
+                    appointment_start_time=appointment.start_time,
+                    appointment_customer_name=appointment.customer_name,
+                    appointment_customer_phone=appointment.customer_phone or "",
+                    appointment_notes=appointment.customer_notes or "",
+                    # Order totals
+                    subtotal=appointment_type.price,
+                    total=appointment_type.price,
+                    # Mark as appointment order
+                    has_digital_items=True,  # Appointments are "digital services"
+                    has_physical_items=False,
+                )
+
+                # Link appointment to order (we'll add this field)
+                appointment.order = order
+                appointment.payment_required = True
+                appointment.payment_amount = appointment_type.price
+                appointment.save()
+
+                # Return redirect to checkout
+                return Response(
+                    {
+                        "success": True,
+                        "appointment_id": appointment.id,
+                        "requires_payment": True,
+                        "checkout_url": f"/checkout/order/{order.id}/",
+                        "message": "Appointment created. Please complete payment.",
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+            else:
+                # Free appointment - confirm immediately
+                appointment.status = "confirmed"
+                appointment.confirmed_at = timezone.now()
+                appointment.save()
+
+                return Response(
+                    {
+                        "success": True,
+                        "appointment_id": appointment.id,
+                        "requires_payment": False,
+                        "message": f'Your appointment has been booked! <a href="/calendar/appointments/{appointment.id}" class="underline">View appointment details</a>',
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
+        except AppointmentType.DoesNotExist:
+            return Response(
+                {"error": "Invalid appointment type"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             return Response(
                 {"error": f"Failed to create appointment: {str(e)}"},
@@ -321,7 +394,7 @@ def book_appointment(request):
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_customer_appointment(request, appointment_id):
     """
     Get appointment details for customer (requires email verification)
@@ -345,7 +418,7 @@ def get_customer_appointment(request, appointment_id):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def cancel_customer_appointment(request, appointment_id):
     """
     Cancel appointment (customer endpoint)
