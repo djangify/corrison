@@ -143,6 +143,6 @@ os.makedirs(log_dir, exist_ok=True)
 
 
 # Email verification settings
-EMAIL_VERIFICATION_URL = "https://corrisonapi.com/auth/verify-email"
-EMAIL_VERIFICATION_TOKEN_EXPIRY = 24  # hours
+EMAIL_VERIFICATION_URL = "https://corrison.corrisonapi.com/auth/verify-email"
+EMAIL_VERIFICATION_TOKEN_EXPIRY = 36  # hours
 SITE_NAME = "Corrison"

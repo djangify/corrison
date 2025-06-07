@@ -9,6 +9,7 @@ from django.views.static import serve
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("api.urls")),
+    path("auth/", include("accounts.urls")),  # ← ADD THIS LINE
     path("", TemplateView.as_view(template_name="index.html"), name="home"),
     path("tinymce/", include("tinymce.urls")),
     path(
