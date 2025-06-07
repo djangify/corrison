@@ -14,7 +14,7 @@ def send_verification_email(user, token):
     """Send email verification email to user"""
 
     # Create verification URL
-    verification_url = f"{getattr(settings, 'EMAIL_VERIFICATION_URL', 'https://corrisonapi.com/auth/verify-email')}/{token}/"
+    verification_url = f"{getattr(settings, 'EMAIL_VERIFICATION_URL', 'https://corrison.corrisonapi.com/auth/verify-email')}/{token}/"
 
     subject = f"Please verify your email address - {getattr(settings, 'SITE_NAME', 'Corrison')}"
 
@@ -121,7 +121,7 @@ def send_password_reset_email(user, reset_token):
     """Send password reset email"""
 
     # Create reset URL
-    reset_url = f"{getattr(settings, 'PASSWORD_RESET_URL', 'https://corrisonapi.com/auth/reset-password')}/{reset_token}/"
+    reset_url = f"{getattr(settings, 'PASSWORD_RESET_URL', 'https://corrison.corrisonapi.com/auth/reset-password')}/{reset_token}/"
 
     subject = f"Reset your password - {getattr(settings, 'SITE_NAME', 'Corrison')}"
 

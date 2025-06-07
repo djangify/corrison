@@ -25,6 +25,10 @@ class Profile(TimestampedModel):
     email_verification_token = models.CharField(max_length=255, blank=True)
     email_verification_sent_at = models.DateTimeField(null=True, blank=True)
 
+    # password reset:
+    password_reset_token = models.CharField(max_length=255, blank=True)
+    password_reset_sent_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name = "Profile"
         verbose_name_plural = "Profiles"
@@ -42,6 +46,13 @@ class Profile(TimestampedModel):
         self.email_verification_sent_at = timezone.now()
         self.save()
         return self.email_verification_token
+
+    def generate_password_reset_token(self):
+        """Generate a new password reset token"""
+        self.password_reset_token = str(uuid.uuid4())
+        self.password_reset_sent_at = timezone.now()
+        self.save()
+        return self.password_reset_token
 
 
 class WishlistItem(UUIDModel, TimestampedModel):

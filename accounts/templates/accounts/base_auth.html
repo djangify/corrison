@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Authentication{% endblock %} – Corrison</title>
+    <meta name="description" content="{% block description %}Corrison authentication system{% endblock %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <main class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+            <!-- Logo -->
+            <div class="flex justify-center items-center mb-8">
+                <div class="w-12 h-12 bg-teal-700 flex items-center justify-center rounded-lg mr-3">
+                    <span class="text-white text-2xl font-bold italic">C</span>
+                </div>
+                <span class="text-teal-700 font-bold text-2xl">Corrison</span>
+            </div>
+
+            <!-- Content Card -->
+            <div class="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
+                {% block content %}
+                {% endblock %}
+            </div>
+        </div>
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

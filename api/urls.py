@@ -70,9 +70,6 @@ urlpatterns = [
     path("auth/login/", auth_views.login, name="auth-login"),
     path("auth/logout/", auth_views.logout, name="auth-logout"),
     path(
-        "auth/verify-email/<str:token>/", auth_views.verify_email, name="verify-email"
-    ),
-    path(
         "auth/resend-verification/",
         auth_views.resend_verification,
         name="resend-verification",

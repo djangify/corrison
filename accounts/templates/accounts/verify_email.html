@@ -1,0 +1,70 @@
+{% extends 'accounts/base_auth.html' %}
+
+{% block title %}Verify Your Email{% endblock %}
+{% block description %}Please check your email to verify your Corrison account.{% endblock %}
+
+{% block content %}
+                <div class="text-center">
+                    <!-- Success Icon -->
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                        <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Check Your Email</h2>
+
+                    {% if message == "resent" %}
+                        <p class="text-gray-600 mb-6">We've sent a new verification email to your inbox.</p>
+                    {% else %}
+                        <p class="text-gray-600 mb-6">We've sent a verification email to help secure your account.</p>
+                    {% endif %}
+
+                    {% if email %}
+                        <p class="text-sm text-gray-500 mb-6 bg-gray-50 p-3 rounded-lg">
+                            <strong>Email sent to:</strong> {{ email }}
+                        </p>
+                    {% endif %}
+
+                    <div class="space-y-4">
+                        <p class="text-sm text-gray-600">
+                            Click the verification link in your email to activate your account.
+                        </p>
+
+                        <div class="text-xs text-gray-500 space-y-2">
+                            <p>• Check your spam folder if you don't see the email</p>
+                            <p>• The verification link expires in 24 hours</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resend Section -->
+                <div class="mt-8 pt-6 border-t border-gray-200">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600 mb-4">Didn't receive the email?</p>
+
+                        {% if email %}
+                            <div id="resend-section">
+                                <form method="post" action="{% url 'accounts:resend-verification' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="email" value="{{ email }}">
+                                    <button type="submit" id="resend-button"
+                                        class="bg-teal-600 text-white hover:bg-teal-700 font-medium px-4 py-2 rounded-lg transition-colors text-sm">
+                                        Resend Verification Email
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Additional Links -->
+                <div class="mt-6 text-center space-y-2">
+                    <a href="{% url 'accounts:login' %}" class="block text-teal-600 hover:text-teal-500 font-medium text-sm">
+                        Back to Sign In
+                    </a>
+                    <a href="/" class="block text-gray-500 hover:text-gray-700 text-sm">Return to Home</a>
+                </div>
+{% endblock %}
