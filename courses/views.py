@@ -52,11 +52,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Filter queryset based on action and permissions"""
-        if self.action in ["my_courses", "my_teaching"]:
-            # These require authentication
-            return Course.objects.none()
-
-        # Public courses
+        # Public courses (my_courses and my_teaching handle their own queries)
         return (
             Course.objects.filter(is_published=True)
             .select_related("instructor", "category")
