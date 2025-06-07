@@ -1,0 +1,409 @@
+<!-- templates/emails/welcome_email.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{ site_name }}!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: bold;
+            font-size: 24px;
+            color: #0f766e;
+            font-style: italic;
+        }
+        
+        .logo-text {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .welcome-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .email-content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #1f2937;
+            text-align: center;
+        }
+        
+        .subheading {
+            font-size: 18px;
+            color: #0f766e;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 16px;
+            margin-bottom: 25px;
+            color: #4b5563;
+        }
+        
+        .cta-section {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 10px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
+        }
+        
+        .cta-button:hover {
+            background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
+        }
+        
+        .cta-secondary {
+            display: inline-block;
+            background-color: transparent;
+            color: #0f766e;
+            text-decoration: none;
+            padding: 16px 32px;
+            border: 2px solid #0f766e;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 10px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .feature-card {
+            background-color: #f8fafc;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background-color: #0f766e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            color: white;
+            font-size: 24px;
+        }
+        
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        
+        .feature-description {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        
+        .stats-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0f766e;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .email-footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 10px 0;
+        }
+        
+        .footer-links {
+            margin-top: 20px;
+        }
+        
+        .footer-links a {
+            color: #0f766e;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 14px;
+        }
+        
+        .social-links {
+            margin-top: 20px;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background-color: #0f766e;
+            color: white;
+            text-decoration: none;
+            border-radius: 50%;
+            margin: 0 10px;
+            line-height: 40px;
+            text-align: center;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+            }
+            
+            .email-header,
+            .email-content,
+            .email-footer {
+                padding: 20px !important;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr !important;
+                gap: 15px !important;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 15px !important;
+            }
+            
+            .cta-button,
+            .cta-secondary {
+                display: block !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 10px 0 !important;
+            }
+            
+            .greeting {
+                font-size: 24px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <div class="logo">
+                <div class="logo-icon">C</div>
+                <h1 class="logo-text">{{ site_name }}</h1>
+            </div>
+            <div class="welcome-badge">✨ Account Verified ✨</div>
+        </div>
+        
+        <!-- Content -->
+        <div class="email-content">
+            <h2 class="greeting">Welcome Aboard!</h2>
+            <p class="subheading">Your {{ site_name }} journey starts now</p>
+            
+            <p class="message">
+                Hi {{ user.get_full_name|default:user.username }},
+            </p>
+            
+            <p class="message">
+                🎉 <strong>Congratulations!</strong> Your email has been successfully verified and your 
+                {{ site_name }} account is now fully active. You're all set to explore everything we have to offer!
+            </p>
+            
+            <div class="cta-section">
+                <a href="https://corrisonapi.com/auth/login" class="cta-button">
+                    Access Your Dashboard
+                </a>
+                <a href="https://corrisonapi.com/courses" class="cta-secondary">
+                    Browse Courses
+                </a>
+            </div>
+            
+            <!-- Features Grid -->
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📚</div>
+                    <div class="feature-title">Learn & Grow</div>
+                    <div class="feature-description">Access premium courses and track your learning progress</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <div class="feature-title">Book Sessions</div>
+                    <div class="feature-description">Schedule one-on-one consultations and appointments</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">💎</div>
+                    <div class="feature-title">Premium Content</div>
+                    <div class="feature-description">Unlock exclusive resources and materials</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-title">Track Progress</div>
+                    <div class="feature-description">Monitor your achievements and milestones</div>
+                </div>
+            </div>
+            
+            <!-- Stats Section -->
+            <div class="stats-section">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937;">Join Our Growing Community</h3>
+                <p style="margin: 0; color: #6b7280; font-size: 14px;">You're part of something amazing</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">10K+</span>
+                        <span class="stat-label">Active Learners</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">500+</span>
+                        <span class="stat-label">Courses Available</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">95%</span>
+                        <span class="stat-label">Success Rate</span>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="message">
+                <strong>What's next?</strong>
+            </p>
+            <ul style="color: #4b5563; margin-left: 20px;">
+                <li><strong>Complete your profile</strong> - Add your interests and goals</li>
+                <li><strong>Explore our courses</strong> - Find content that matches your needs</li>
+                <li><strong>Join the community</strong> - Connect with fellow learners</li>
+                <li><strong>Set your learning goals</strong> - Create a personalized learning path</li>
+            </ul>
+            
+            <p class="message">
+                Need help getting started? Our support team is here to assist you every step of the way. 
+                Don't hesitate to reach out if you have any questions!
+            </p>
+            
+            <p class="message">
+                Here's to your success! 🚀<br>
+                The {{ site_name }} Team
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <p class="footer-text">
+                This email was sent to {{ user.email }}
+            </p>
+            <p class="footer-text">
+                {{ site_name }} • Empowering your learning journey
+            </p>
+            
+            <div class="footer-links">
+                <a href="https://corrisonapi.com/">Visit Website</a>
+                <a href="https://corrisonapi.com/courses/">Browse Courses</a>
+                <a href="https://corrisonapi.com/contact/">Get Support</a>
+                <a href="https://corrisonapi.com/blog/">Read Blog</a>
+            </div>
+            
+            <div class="social-links">
+                <a href="#" title="Twitter">T</a>
+                <a href="#" title="LinkedIn">L</a>
+                <a href="#" title="YouTube">Y</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

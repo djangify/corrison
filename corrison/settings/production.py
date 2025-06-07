@@ -136,7 +136,13 @@ log_dir = os.path.join(BASE_DIR, "logs")
 os.makedirs(log_dir, exist_ok=True)
 
 # Load site-specific settings
-try:
-    from .site_settings import *
-except ImportError:
-    pass
+# try:
+#     from .site_settings import *
+# except ImportError:
+#     pass
+
+
+# Email verification settings
+EMAIL_VERIFICATION_URL = "https://corrisonapi.com/auth/verify-email"
+EMAIL_VERIFICATION_TOKEN_EXPIRY = 24  # hours
+SITE_NAME = "Corrison"

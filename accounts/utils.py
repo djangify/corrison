@@ -1,10 +1,8 @@
 # accounts/utils.py
 import uuid
 from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 from django.conf import settings
-from django.urls import reverse
+from django.template.loader import render_to_string
 
 
 def generate_verification_token():
@@ -16,20 +14,11 @@ def send_verification_email(user, token):
     """Send email verification email to user"""
 
     # Create verification URL
-    verification_url = f"{getattr(settings, 'EMAIL_VERIFICATION_URL', 'http://localhost:8000/api/v1/auth/verify-email')}/{token}/"
+    verification_url = f"{getattr(settings, 'EMAIL_VERIFICATION_URL', 'https://corrisonapi.com/auth/verify-email')}/{token}/"
 
     subject = f"Please verify your email address - {getattr(settings, 'SITE_NAME', 'Corrison')}"
 
-    # Email context
-    context = {
-        "user": user,
-        "verification_url": verification_url,
-        "site_name": getattr(settings, "SITE_NAME", "Corrison"),
-        "token": token,
-    }
-
-    # For now, we'll send a simple text email
-    # You can create HTML templates later
+    # Text message (fallback)
     message = f"""
 Hello {user.get_full_name() or user.username},
 
@@ -48,12 +37,25 @@ The {getattr(settings, "SITE_NAME", "Corrison")} Team
 """
 
     try:
+        # Try to use HTML template, fallback to text if template doesn't exist
+        try:
+            html_message = render_to_string(
+                "emails/verification_email.html",
+                {
+                    "user": user,
+                    "verification_url": verification_url,
+                    "site_name": getattr(settings, "SITE_NAME", "Corrison"),
+                    "token": token,
+                },
+            )
+        except Exception:
+            html_message = None
+
         send_mail(
             subject=subject,
-            message=message,
-            from_email=getattr(
-                settings, "DEFAULT_FROM_EMAIL", "noreply@corrisonapi.com"
-            ),
+            message=message,  # Keep text fallback
+            html_message=html_message,  # Add HTML version if available
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@corrisonapi.com"),
             recipient_list=[user.email],
             fail_silently=False,
         )
@@ -68,6 +70,7 @@ def send_welcome_email(user):
 
     subject = f"Welcome to {getattr(settings, 'SITE_NAME', 'Corrison')} - Your account is ready!"
 
+    # Text message
     message = f"""
 Hello {user.get_full_name() or user.username},
 
@@ -88,12 +91,23 @@ The {getattr(settings, "SITE_NAME", "Corrison")} Team
 """
 
     try:
+        # Try to use HTML template, fallback to text if template doesn't exist
+        try:
+            html_message = render_to_string(
+                "emails/welcome_email.html",
+                {
+                    "user": user,
+                    "site_name": getattr(settings, "SITE_NAME", "Corrison"),
+                },
+            )
+        except Exception:
+            html_message = None
+
         send_mail(
             subject=subject,
             message=message,
-            from_email=getattr(
-                settings, "DEFAULT_FROM_EMAIL", "noreply@corrisonapi.com"
-            ),
+            html_message=html_message,  # Add HTML version if available
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@corrisonapi.com"),
             recipient_list=[user.email],
             fail_silently=False,
         )
@@ -104,17 +118,24 @@ The {getattr(settings, "SITE_NAME", "Corrison")} Team
 
 
 def send_password_reset_email(user, reset_token):
-    """Send password reset email (for future implementation)"""
+    """Send password reset email"""
+
+    # Create reset URL
+    reset_url = f"{getattr(settings, 'PASSWORD_RESET_URL', 'https://corrisonapi.com/auth/reset-password')}/{reset_token}/"
 
     subject = f"Reset your password - {getattr(settings, 'SITE_NAME', 'Corrison')}"
 
-    # This would be implemented when you add password reset functionality
+    # Text message
     message = f"""
 Hello {user.get_full_name() or user.username},
 
 You requested a password reset for your {getattr(settings, "SITE_NAME", "Corrison")} account.
 
-[Password reset functionality to be implemented]
+To reset your password, click the link below:
+
+{reset_url}
+
+This reset link will expire in 1 hour for security reasons.
 
 If you didn't request this reset, please ignore this email.
 
@@ -123,12 +144,24 @@ The {getattr(settings, "SITE_NAME", "Corrison")} Team
 """
 
     try:
+        # Try to use HTML template, fallback to text if template doesn't exist
+        try:
+            html_message = render_to_string(
+                "emails/password_reset_email.html",
+                {
+                    "user": user,
+                    "reset_url": reset_url,
+                    "site_name": getattr(settings, "SITE_NAME", "Corrison"),
+                },
+            )
+        except Exception:
+            html_message = None
+
         send_mail(
             subject=subject,
             message=message,
-            from_email=getattr(
-                settings, "DEFAULT_FROM_EMAIL", "noreply@corrisonapi.com"
-            ),
+            html_message=html_message,  # Add HTML version if available
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@corrisonapi.com"),
             recipient_list=[user.email],
             fail_silently=False,
         )
