@@ -146,3 +146,8 @@ os.makedirs(log_dir, exist_ok=True)
 EMAIL_VERIFICATION_URL = "https://corrison.corrisonapi.com/auth/verify-email"
 EMAIL_VERIFICATION_TOKEN_EXPIRY = 36  # hours
 SITE_NAME = "Corrison"
+
+AUTHENTICATION_BACKENDS = [
+    "accounts.backends.EmailOrUsernameModelBackend",
+    "django.contrib.auth.backends.ModelBackend",  # Keep as fallback
+]
