@@ -33,14 +33,23 @@ def create_calendar_user(sender, instance, created, **kwargs):
 def handle_appointment_status_change(sender, instance, created, **kwargs):
     """
     Handle appointment status changes - send emails, etc.
+    FIXED: Only send ONE email per appointment creation
     """
     if created:
-        # New appointment created - send emails to both customer and owner
+        # New appointment created - send emails to owner and customer
         send_new_appointment_notification_to_owner(instance)
-        send_new_appointment_confirmation_to_customer(instance)
+
+        # FIXED: Only send customer email based on final status
+        if instance.status == "confirmed":
+            # Send confirmed email directly (no need for pending email)
+            send_appointment_confirmed_email(instance)
+        else:
+            # Only send pending email if actually pending
+            send_new_appointment_confirmation_to_customer(instance)
     else:
-        # Existing appointment updated
+        # Existing appointment updated - only send if status actually changed
         if instance.status == "confirmed" and instance.confirmed_at:
+            # Only send if this is a status change from pending to confirmed
             send_appointment_confirmed_email(instance)
         elif instance.status == "cancelled" and instance.cancelled_at:
             send_appointment_cancelled_email(instance)
@@ -78,7 +87,7 @@ Appointment Details:
 {f"Payment Required: ${appointment.payment_amount}" if appointment.payment_required else ""}
 
 To manage this appointment, visit your business dashboard:
-{site_url}/calendar/manage-appointments/
+{site_url}/calendar/my-appointments/
 
 Customer Management Link (what the customer sees):
 {site_url}/calendar/appointment?id={appointment.id}&email={appointment.customer_email}
@@ -101,33 +110,22 @@ Your Calendar System
 
 def send_new_appointment_confirmation_to_customer(appointment):
     """
-    Send initial confirmation email to customer when appointment is first created
+    Send initial confirmation email to customer when appointment is PENDING
+    FIXED: Only called for truly pending appointments
     """
     calendar_user = appointment.calendar_user
 
-    subject = f"Appointment Booked - {appointment.appointment_type.name}"
+    subject = f"Appointment Request Received - {appointment.appointment_type.name}"
 
     # Get the site URL
     site_url = getattr(settings, "SITE_URL", "https://corrisonapi.com")
 
-    # Status-specific messaging
-    if appointment.status == "pending":
-        status_message = (
-            "Your appointment request has been received and is pending confirmation."
-        )
-        next_steps = (
-            "You will receive another email once your appointment is confirmed."
-        )
-    else:
-        status_message = "Your appointment has been confirmed!"
-        next_steps = "We look forward to seeing you!"
-
     message = f"""
 Dear {appointment.customer_name},
 
-Thank you for booking an appointment with {calendar_user.display_name}!
+Thank you for your appointment request with {calendar_user.display_name}!
 
-{status_message}
+Your appointment request has been received and is pending confirmation.
 
 Appointment Details:
 - Service: {appointment.appointment_type.name}
@@ -135,12 +133,10 @@ Appointment Details:
 - Time: {appointment.start_time.strftime("%I:%M %p")} - {appointment.end_time.strftime("%I:%M %p")}
 - Provider: {calendar_user.display_name}
 
-{calendar_user.booking_instructions if calendar_user.booking_instructions else ""}
+You will receive another email once your appointment is confirmed.
 
-To view, edit, or cancel your appointment, click here:
+To view or cancel your appointment request, click here:
 {site_url}/calendar/appointment?id={appointment.id}&email={appointment.customer_email}
-
-{next_steps}
 
 Best regards,
 {calendar_user.display_name}
@@ -160,13 +156,10 @@ Best regards,
 
 def send_appointment_confirmed_email(appointment):
     """
-    Send email when appointment is confirmed by owner (status changes to confirmed)
+    Send email when appointment is confirmed
+    FIXED: This is the MAIN customer email for confirmed appointments
     """
     calendar_user = appointment.calendar_user
-    booking_settings = getattr(calendar_user, "booking_settings", None)
-
-    if not booking_settings or not booking_settings.send_confirmation_emails:
-        return
 
     subject = f"Appointment Confirmed - {appointment.appointment_type.name}"
 
@@ -249,7 +242,7 @@ Best regards,
 
 def send_appointment_updated_email(appointment):
     """
-    Send email when appointment is updated (you can call this manually when needed)
+    Send email when appointment is updated (called manually when needed)
     """
     subject = f"Appointment Updated - {appointment.appointment_type.name}"
 

@@ -116,7 +116,7 @@ urlpatterns = [
         appointments_views.get_customer_appointment,
         name="customer-appointment",
     ),
-    # NEW: Update appointment endpoint
+    # Update appointment endpoint
     path(
         "calendar/appointment/<int:appointment_id>/update/",
         appointments_views.update_customer_appointment,
@@ -128,7 +128,12 @@ urlpatterns = [
         appointments_views.cancel_customer_appointment,
         name="cancel-appointment",
     ),
-    # NEW: Get available slots for rescheduling
+    path(
+        "calendar/appointment/<int:appointment_id>/update/",
+        appointments_views.update_customer_appointment,
+        name="update-appointment",
+        # Get available slots for rescheduling
+    ),
     path(
         "calendar/appointment/<int:appointment_id>/available-slots/",
         appointments_views.get_available_slots_for_reschedule,

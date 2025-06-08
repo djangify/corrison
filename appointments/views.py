@@ -375,7 +375,7 @@ def book_appointment(request):
                         "success": True,
                         "appointment_id": appointment.id,
                         "requires_payment": False,
-                        "message": f'Your appointment has been booked! <a href="/calendar/appointments/{appointment.id}" class="underline">View appointment details</a>',
+                        "message": "Your appointment has been booked successfully!",
                     },
                     status=status.HTTP_201_CREATED,
                 )
@@ -472,9 +472,6 @@ def calculate_available_slots(calendar_user, appointment_type, start_date, end_d
         current_date += timedelta(days=1)
 
     return available_slots
-
-
-# Add these updated/new views to appointments/views.py
 
 
 @api_view(["GET"])
