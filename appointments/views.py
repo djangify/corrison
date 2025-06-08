@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from datetime import datetime, timedelta
 from checkout.models import Order
+from .signals import send_appointment_updated_email
 
 from .models import (
     CalendarUser,
@@ -393,65 +394,6 @@ def book_appointment(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_customer_appointment(request, appointment_id):
-    """
-    Get appointment details for customer (requires email verification)
-    """
-    email = request.query_params.get("email")
-
-    if not email:
-        return Response(
-            {"error": "Email parameter is required"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    try:
-        appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
-        serializer = CustomerAppointmentSerializer(appointment)
-        return Response(serializer.data)
-
-    except Appointment.DoesNotExist:
-        return Response(
-            {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
-        )
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def cancel_customer_appointment(request, appointment_id):
-    """
-    Cancel appointment (customer endpoint)
-    """
-    email = request.data.get("email")
-
-    if not email:
-        return Response(
-            {"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    try:
-        appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
-
-        if appointment.can_be_cancelled():
-            appointment.status = "cancelled"
-            appointment.cancelled_at = timezone.now()
-            appointment.save()
-
-            serializer = CustomerAppointmentSerializer(appointment)
-            return Response(serializer.data)
-        else:
-            return Response(
-                {"error": "Appointment cannot be cancelled"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-    except Appointment.DoesNotExist:
-        return Response(
-            {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
-        )
-
-
 def calculate_available_slots(calendar_user, appointment_type, start_date, end_date):
     """
     Calculate available time slots using weekly schedule + overrides
@@ -525,6 +467,319 @@ def calculate_available_slots(calendar_user, appointment_type, start_date, end_d
                     )
 
                 # Move to next possible slot (including buffer time)
+                current_slot_start = slot_end_time + buffer_time
+
+        current_date += timedelta(days=1)
+
+    return available_slots
+
+
+# Add these updated/new views to appointments/views.py
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])  # Changed from IsAuthenticated
+def get_customer_appointment(request, appointment_id):
+    """
+    Get appointment details for customer (requires email verification)
+    """
+    email = request.query_params.get("email")
+
+    if not email:
+        return Response(
+            {"error": "Email parameter is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
+        serializer = CustomerAppointmentSerializer(appointment)
+        return Response(serializer.data)
+
+    except Appointment.DoesNotExist:
+        return Response(
+            {"error": "Appointment not found or email doesn't match"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([AllowAny])  # New endpoint for editing
+def update_customer_appointment(request, appointment_id):
+    """
+    Update appointment details (customer endpoint)
+    """
+    email = request.data.get("email")
+
+    if not email:
+        return Response(
+            {"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
+
+        # Check if appointment can be modified
+        if not appointment.can_be_cancelled():  # Same logic for editing
+            return Response(
+                {
+                    "error": "Appointment cannot be modified (too close to appointment time or already completed)"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only allow updating certain fields
+        allowed_fields = ["customer_name", "customer_phone", "customer_notes"]
+
+        # Create update data with only allowed fields
+        update_data = {}
+        for field in allowed_fields:
+            if field in request.data:
+                update_data[field] = request.data[field]
+
+        # Handle date/time changes (more complex - requires slot availability check)
+        if "date" in request.data or "start_time" in request.data:
+            new_date = request.data.get("date", appointment.date)
+            new_start_time = request.data.get("start_time", appointment.start_time)
+
+            # Convert string date to date object if needed
+            if isinstance(new_date, str):
+                new_date = datetime.strptime(new_date, "%Y-%m-%d").date()
+
+            # Convert string time to time object if needed
+            if isinstance(new_start_time, str):
+                new_start_time = datetime.strptime(new_start_time, "%H:%M").time()
+
+            # Check if the new slot is available
+            conflicts = Appointment.objects.filter(
+                appointment_type__calendar_user=appointment.appointment_type.calendar_user,
+                date=new_date,
+                status__in=["pending", "confirmed"],
+            ).exclude(id=appointment.id)  # Exclude current appointment
+
+            # Calculate new end time
+            start_datetime = datetime.combine(new_date, new_start_time)
+            end_datetime = start_datetime + timedelta(
+                minutes=appointment.duration_minutes
+            )
+            new_end_time = end_datetime.time()
+
+            # Check for conflicts
+            for conflict in conflicts:
+                if (
+                    new_start_time < conflict.end_time
+                    and new_end_time > conflict.start_time
+                ):
+                    return Response(
+                        {"error": "The requested time slot is not available"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            # Check calendar availability (basic check - you may want to enhance this)
+            weekday = new_date.weekday()
+            if not appointment.appointment_type.calendar_user.is_available_on_day(
+                weekday
+            ):
+                day_names = [
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                    "Sunday",
+                ]
+                return Response(
+                    {"error": f"Calendar is not available on {day_names[weekday]}s"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            update_data["date"] = new_date
+            update_data["start_time"] = new_start_time
+            update_data["end_time"] = new_end_time
+
+        # Update the appointment
+        for field, value in update_data.items():
+            setattr(appointment, field, value)
+
+        appointment.save()
+
+        # After successful update in the view:
+        if update_data:  # If any changes were made
+            send_appointment_updated_email(appointment)
+
+        serializer = CustomerAppointmentSerializer(appointment)
+        return Response(
+            {
+                "success": True,
+                "message": "Appointment updated successfully",
+                "appointment": serializer.data,
+            }
+        )
+
+    except Appointment.DoesNotExist:
+        return Response(
+            {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to update appointment: {str(e)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])  # Changed from IsAuthenticated
+def cancel_customer_appointment(request, appointment_id):
+    """
+    Cancel appointment (customer endpoint)
+    """
+    email = request.data.get("email")
+
+    if not email:
+        return Response(
+            {"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
+
+        if appointment.can_be_cancelled():
+            appointment.status = "cancelled"
+            appointment.cancelled_at = timezone.now()
+            appointment.save()
+
+            serializer = CustomerAppointmentSerializer(appointment)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Appointment cancelled successfully",
+                    "appointment": serializer.data,
+                }
+            )
+        else:
+            return Response(
+                {
+                    "error": "Appointment cannot be cancelled (too close to appointment time or already completed)"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    except Appointment.DoesNotExist:
+        return Response(
+            {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_available_slots_for_reschedule(request, appointment_id):
+    """
+    Get available slots for rescheduling an existing appointment
+    """
+    email = request.query_params.get("email")
+
+    if not email:
+        return Response(
+            {"error": "Email parameter is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        appointment = Appointment.objects.get(id=appointment_id, customer_email=email)
+
+        # Get the calendar user and appointment type
+        calendar_user = appointment.appointment_type.calendar_user
+        appointment_type = appointment.appointment_type
+
+        # Get date range (next 30 days or calendar's booking window)
+        start_date = timezone.now().date()
+        end_date = start_date + timedelta(days=calendar_user.booking_window_days)
+
+        # Calculate available slots (excluding current appointment)
+        available_slots = calculate_available_slots_excluding_appointment(
+            calendar_user, appointment_type, start_date, end_date, appointment.id
+        )
+
+        serializer = AvailableSlotSerializer(available_slots, many=True)
+        return Response(serializer.data)
+
+    except Appointment.DoesNotExist:
+        return Response(
+            {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+
+def calculate_available_slots_excluding_appointment(
+    calendar_user, appointment_type, start_date, end_date, exclude_appointment_id
+):
+    """
+    Modified version of calculate_available_slots that excludes a specific appointment
+    """
+    available_slots = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        # Check if this is a weekday the calendar is open
+        weekday = current_date.weekday()
+
+        if not calendar_user.is_available_on_day(weekday):
+            current_date += timedelta(days=1)
+            continue
+
+        # Get default hours for this day
+        day_start, day_end = calendar_user.get_day_hours(weekday)
+
+        if not day_start or not day_end:
+            current_date += timedelta(days=1)
+            continue
+
+        # Check for availability overrides
+        availability_overrides = Availability.objects.filter(
+            calendar_user=calendar_user, date=current_date
+        )
+
+        if availability_overrides.exists():
+            available_periods = []
+            for override in availability_overrides:
+                if override.is_available:
+                    available_periods.append((override.start_time, override.end_time))
+        else:
+            available_periods = [(day_start, day_end)]
+
+        # Get existing appointments for this date (excluding the one being rescheduled)
+        existing_appointments = Appointment.objects.filter(
+            appointment_type__calendar_user=calendar_user,
+            date=current_date,
+            status__in=["pending", "confirmed"],
+        ).exclude(id=exclude_appointment_id)
+
+        # Calculate free time slots
+        for period_start, period_end in available_periods:
+            slot_start = datetime.combine(current_date, period_start)
+            slot_end = datetime.combine(current_date, period_end)
+            duration = timedelta(minutes=appointment_type.duration_minutes)
+            buffer_time = timedelta(minutes=calendar_user.buffer_minutes)
+
+            current_slot_start = slot_start
+
+            while current_slot_start + duration <= slot_end:
+                slot_end_time = current_slot_start + duration
+
+                # Check if this slot conflicts with existing appointments
+                conflicts = existing_appointments.filter(
+                    start_time__lt=slot_end_time.time(),
+                    end_time__gt=current_slot_start.time(),
+                )
+
+                if not conflicts.exists():
+                    available_slots.append(
+                        {
+                            "date": current_date,
+                            "start_time": current_slot_start.time(),
+                            "end_time": slot_end_time.time(),
+                            "appointment_type_id": appointment_type.id,
+                        }
+                    )
+
                 current_slot_start = slot_end_time + buffer_time
 
         current_date += timedelta(days=1)

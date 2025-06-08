@@ -92,9 +92,6 @@ urlpatterns = [
         views.placeholder_image,
         name="placeholder-image",
     ),
-    # ============================================================
-    # APPOINTMENTS PUBLIC API - SINGLE USER SYSTEM (NO USERNAME)
-    # ============================================================
     # Get calendar info (replaces username-specific endpoint)
     path(
         "calendar/info/",
@@ -119,32 +116,22 @@ urlpatterns = [
         appointments_views.get_customer_appointment,
         name="customer-appointment",
     ),
+    # NEW: Update appointment endpoint
+    path(
+        "calendar/appointment/<int:appointment_id>/update/",
+        appointments_views.update_customer_appointment,
+        name="update-customer-appointment",
+    ),
+    # Updated: Cancel appointment endpoint
     path(
         "calendar/appointment/<int:appointment_id>/cancel/",
         appointments_views.cancel_customer_appointment,
         name="cancel-appointment",
     ),
-    # Courses nested endpoints
+    # NEW: Get available slots for rescheduling
     path(
-        "courses/<str:course_slug>/lessons/",
-        courses_views.LessonViewSet.as_view({"get": "list", "post": "create"}),
-        name="course-lessons-list",
-    ),
-    path(
-        "courses/<str:course_slug>/lessons/<str:slug>/",
-        courses_views.LessonViewSet.as_view(
-            {
-                "get": "retrieve",
-                "put": "update",
-                "patch": "partial_update",
-                "delete": "destroy",
-            }
-        ),
-        name="course-lessons-detail",
-    ),
-    path(
-        "courses/<str:course_slug>/lessons/<str:slug>/complete/",
-        courses_views.LessonViewSet.as_view({"post": "complete"}),
-        name="course-lessons-complete",
+        "calendar/appointment/<int:appointment_id>/available-slots/",
+        appointments_views.get_available_slots_for_reschedule,
+        name="reschedule-slots",
     ),
 ]

@@ -8,7 +8,7 @@ from .models import (
     Appointment,
     BookingSettings,
 )
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 from django.utils import timezone
 
 User = get_user_model()
@@ -396,4 +396,19 @@ class CustomerAppointmentSerializer(serializers.ModelSerializer):
             "created_at",
             "confirmed_at",
         ]
-        read_only_fields = "__all__"
+        read_only_fields = [
+            "id",
+            "appointment_type_name",
+            "calendar_user_name",
+            "date",
+            "start_time",
+            "end_time",
+            "duration_minutes",
+            "status",
+            "customer_notes",
+            "payment_status",
+            "payment_amount",
+            "can_be_cancelled",
+            "created_at",
+            "confirmed_at",
+        ]

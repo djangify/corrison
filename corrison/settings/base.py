@@ -220,7 +220,7 @@ COURSES_SETTINGS = {
 
 # Email settings for appointments and courses notifications
 if not hasattr(locals(), "SITE_URL"):
-    SITE_URL = "http://localhost:8000"  # Override in production settings
+    SITE_URL = "https://corrisonapi.com"
 
 # Site name for emails
 SITE_NAME = "Corrison"

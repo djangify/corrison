@@ -347,7 +347,9 @@ class Appointment(models.Model):
             return False
 
         # Can't cancel if appointment is in the past
-        appointment_datetime = datetime.combine(self.date, self.start_time)
+        appointment_datetime = timezone.make_aware(
+            datetime.combine(self.date, self.start_time)
+        )
         return appointment_datetime > timezone.now()
 
     def get_absolute_url(self):
