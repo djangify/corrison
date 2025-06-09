@@ -61,7 +61,7 @@ router.register(
 )
 router.register(r"courses", CourseViewSet, basename="course")
 router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
-router.register(r"course-settings", CourseSettingsViewSet, basename="course-settings")
+router.register(r"courses-settings", CourseSettingsViewSet, basename="courses-settings")
 
 urlpatterns = [
     path("", include(router.urls)),

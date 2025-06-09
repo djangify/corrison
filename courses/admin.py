@@ -1,9 +1,10 @@
+# courses/admin.py
 from django.contrib import admin
 from django.db import models
 from django.utils.html import format_html
 from django.urls import reverse
 from tinymce.widgets import TinyMCE
-from .models import Category, Course, Lesson, Enrollment, CourseSettings
+from .models import Category, Course, Lesson, Enrollment, CourseSettings, SavedCourse
 
 
 class LessonInline(admin.TabularInline):
@@ -340,3 +341,11 @@ class CourseSettingsAdmin(admin.ModelAdmin):
     formfield_overrides = {
         models.TextField: {"widget": TinyMCE(attrs={"cols": 80, "rows": 10})},
     }
+
+
+@admin.register(SavedCourse)
+class SavedCourseAdmin(admin.ModelAdmin):
+    list_display = ["user", "course", "created_at"]
+    list_filter = ["created_at"]
+    search_fields = ["user__username", "course__name"]
+    readonly_fields = ["created_at"]

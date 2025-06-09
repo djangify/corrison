@@ -162,6 +162,25 @@ class Course(SluggedModel, TimestampedModel, PublishableModel, SEOModel):
 
         return f"https://www.youtube.com/embed/{video_id}" if video_id else None
 
+    def get_youtube_thumbnail(self):
+        """Get YouTube thumbnail URL from intro video"""
+        if not self.intro_video_url:
+            return None
+
+        if "youtu.be" in self.intro_video_url:
+            video_id = self.intro_video_url.split("/")[-1].split("?")[0]
+        elif "youtube.com" in self.intro_video_url:
+            video_id = re.search(r"v=([^&]+)", self.intro_video_url)
+            video_id = video_id.group(1) if video_id else None
+        else:
+            return None
+
+        return (
+            f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            if video_id
+            else None
+        )
+
 
 class Lesson(TimestampedModel, PublishableModel):
     """Individual lesson within a course"""
@@ -409,3 +428,28 @@ class CourseSettings(TimestampedModel):
             if title and url:
                 courses.append({"title": title, "url": url})
         return courses
+
+
+class SavedCourse(TimestampedModel):
+    """
+    Saved course model to store courses in a user's saved list.
+    """
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="saved_courses"
+    )
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="saved_by_users"
+    )
+
+    class Meta:
+        verbose_name = "Saved Course"
+        verbose_name_plural = "Saved Courses"
+        unique_together = ("user", "course")
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["course"]),
+        ]
+
+    def __str__(self):
+        return f"{self.course.name} saved by {self.user.username}"

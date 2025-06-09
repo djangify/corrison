@@ -1,3 +1,4 @@
+# courses/views.py
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -5,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db.models import Count, Q
-from .models import Course, Lesson, Enrollment, Category, CourseSettings
+from .models import Course, Lesson, Enrollment, Category, CourseSettings, SavedCourse
 from .serializers import (
     CourseListSerializer,
     CourseDetailSerializer,
@@ -17,6 +18,7 @@ from .serializers import (
     CourseCreateUpdateSerializer,
     LessonCreateUpdateSerializer,
     CourseSettingsSerializer,
+    SavedCourseSerializer,
 )
 
 
@@ -75,6 +77,9 @@ class CourseViewSet(viewsets.ModelViewSet):
             "partial_update",
             "destroy",
             "my_teaching",
+            "save_course",
+            "unsave_course",
+            "my_saved",
         ]:
             return [IsAuthenticated()]
         return [AllowAny()]
@@ -113,6 +118,51 @@ class CourseViewSet(viewsets.ModelViewSet):
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    def save_course(self, request, slug=None):
+        """Save/star a course"""
+        course = self.get_object()
+
+        saved_course, created = SavedCourse.objects.get_or_create(
+            user=request.user, course=course
+        )
+
+        if created:
+            return Response(
+                {"message": "Course saved successfully", "saved": True},
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            return Response({"message": "Course already saved", "saved": True})
+
+    @action(detail=True, methods=["delete"], permission_classes=[IsAuthenticated])
+    def unsave_course(self, request, slug=None):
+        """Remove course from saved list"""
+        course = self.get_object()
+
+        try:
+            saved_course = SavedCourse.objects.get(user=request.user, course=course)
+            saved_course.delete()
+            return Response(
+                {"message": "Course removed from saved list", "saved": False}
+            )
+        except SavedCourse.DoesNotExist:
+            return Response({"message": "Course was not saved", "saved": False})
+
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
+    def my_saved(self, request):
+        """Get user's saved courses"""
+        saved_courses = (
+            SavedCourse.objects.filter(user=request.user)
+            .select_related("course__instructor", "course__category")
+            .order_by("-created_at")
+        )
+
+        serializer = SavedCourseSerializer(
+            saved_courses, many=True, context={"request": request}
+        )
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
     def my_courses(self, request):

@@ -1,6 +1,7 @@
+# courses/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Course, Lesson, Enrollment, Category, CourseSettings
+from .models import Course, Lesson, Enrollment, Category, CourseSettings, SavedCourse
 
 User = get_user_model()
 
@@ -107,6 +108,8 @@ class CourseListSerializer(serializers.ModelSerializer):
     lesson_count = serializers.IntegerField(read_only=True)
     is_enrolled = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
+    youtube_thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -116,6 +119,7 @@ class CourseListSerializer(serializers.ModelSerializer):
             "slug",
             "short_description",
             "thumbnail",
+            "youtube_thumbnail",
             "instructor",
             "category",
             "difficulty",
@@ -126,6 +130,7 @@ class CourseListSerializer(serializers.ModelSerializer):
             "total_enrollments",
             "is_enrolled",
             "progress_percentage",
+            "is_saved",
             "external_course_url",
             "external_platform",
             "created_at",
@@ -155,6 +160,18 @@ class CourseListSerializer(serializers.ModelSerializer):
         except Enrollment.DoesNotExist:
             return 0
 
+    def get_is_saved(self, obj):
+        """Check if current user has saved this course"""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        return SavedCourse.objects.filter(user=request.user, course=obj).exists()
+
+    def get_youtube_thumbnail(self, obj):
+        """Get YouTube thumbnail URL"""
+        return obj.get_youtube_thumbnail()
+
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     """Full course details with lessons"""
@@ -168,6 +185,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     is_enrolled = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
     next_lesson = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
+    youtube_thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -183,6 +202,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "estimated_duration",
             "language",
             "thumbnail",
+            "youtube_thumbnail",
             "intro_video_url",
             "intro_video_embed_url",
             "price",
@@ -195,6 +215,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "is_enrolled",
             "progress_percentage",
             "next_lesson",
+            "is_saved",
             "external_course_url",
             "external_platform",
             "created_at",
@@ -252,6 +273,18 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             return None  # All lessons completed
         except Enrollment.DoesNotExist:
             return None
+
+    def get_is_saved(self, obj):
+        """Check if current user has saved this course"""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        return SavedCourse.objects.filter(user=request.user, course=obj).exists()
+
+    def get_youtube_thumbnail(self, obj):
+        """Get YouTube thumbnail URL"""
+        return obj.get_youtube_thumbnail()
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
@@ -403,3 +436,13 @@ class CourseSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseSettings
         fields = ["page_title", "page_subtitle", "page_description", "external_courses"]
+
+
+class SavedCourseSerializer(serializers.ModelSerializer):
+    """Serializer for saved courses"""
+
+    course = CourseListSerializer(read_only=True)
+
+    class Meta:
+        model = SavedCourse
+        fields = ["id", "course", "created_at"]
