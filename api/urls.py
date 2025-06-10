@@ -35,7 +35,8 @@ router.register(r"products", views.ProductViewSet, basename="product")
 router.register(r"categories", views.CategoryViewSet, basename="category")
 router.register(r"orders", views.OrderViewSet, basename="order")
 router.register(r"payments", views.PaymentViewSet, basename="payment")
-router.register(r"users", views.UserViewSet, basename="user")
+# REMOVED: router.register(r"users", views.UserViewSet, basename="user")
+# User management now handled by dedicated auth endpoints below
 router.register(r"blog/posts", BlogPostViewSet, basename="blog")
 router.register(r"pages", PageViewSet, basename="page")
 router.register(r"testimonials", TestimonialViewSet, basename="testimonial")
@@ -74,7 +75,9 @@ router.register(r"courses-settings", CourseSettingsViewSet, basename="courses-se
 
 urlpatterns = [
     path("", include(router.urls)),
-    # Authentication endpoints
+    # ============================================================
+    # AUTHENTICATION ENDPOINTS - Secure user management
+    # ============================================================
     path("auth/register/", auth_views.register, name="auth-register"),
     path("auth/login/", auth_views.login, name="auth-login"),
     path("auth/logout/", auth_views.logout, name="auth-logout"),
@@ -85,7 +88,9 @@ urlpatterns = [
     ),
     path("auth/profile/", auth_views.user_profile, name="user-profile"),
     path("auth/change-password/", auth_views.change_password, name="change-password"),
-    # Existing custom API endpoints
+    # ============================================================
+    # CUSTOM API ENDPOINTS
+    # ============================================================
     path("cart/add/", views.add_to_cart, name="add-to-cart"),
     path("cart/update/", views.update_cart_item, name="update-cart-item"),
     path("cart/remove/", views.remove_cart_item, name="remove-cart-item"),
@@ -101,19 +106,19 @@ urlpatterns = [
         views.placeholder_image,
         name="placeholder-image",
     ),
-    # Get calendar info (replaces username-specific endpoint)
+    # ============================================================
+    # APPOINTMENTS PUBLIC API - SINGLE USER SYSTEM (NO USERNAME)
+    # ============================================================
     path(
         "calendar/info/",
         appointments_views.get_calendar_info,
         name="calendar-info",
     ),
-    # Get available slots for booking
     path(
         "calendar/slots/",
         appointments_views.get_available_slots,
         name="available-slots",
     ),
-    # Book an appointment
     path(
         "calendar/book/",
         appointments_views.book_appointment,
@@ -125,13 +130,11 @@ urlpatterns = [
         appointments_views.get_customer_appointment,
         name="customer-appointment",
     ),
-    # Update appointment endpoint
     path(
         "calendar/appointment/<int:appointment_id>/update/",
         appointments_views.update_customer_appointment,
         name="update-customer-appointment",
     ),
-    # Updated: Cancel appointment endpoint
     path(
         "calendar/appointment/<int:appointment_id>/cancel/",
         appointments_views.cancel_customer_appointment,
@@ -141,7 +144,6 @@ urlpatterns = [
         "calendar/appointment/<int:appointment_id>/update/",
         appointments_views.update_customer_appointment,
         name="update-appointment",
-        # Get available slots for rescheduling
     ),
     path(
         "calendar/appointment/<int:appointment_id>/available-slots/",

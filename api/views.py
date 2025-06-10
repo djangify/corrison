@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, filters
 from rest_framework.permissions import (
     IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
     AllowAny,
 )
 from rest_framework.decorators import api_view
@@ -15,7 +14,6 @@ from products.serializers import ProductSerializer
 from .serializers import (
     OrderSerializer,
     PaymentSerializer,
-    UserCreateUpdateSerializer,
     CategorySerializer,
 )
 
@@ -108,29 +106,12 @@ class PaymentViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(order__user=self.request.user)
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    """
-    - POST (create): open to anyone (registration)
-    - GET/PUT/PATCH (update): only for the authenticated user
-    """
-
-    queryset = User.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-    def get_serializer_class(self):
-        # for signup (no instance yet), and for profile updates, use our create/update serializer
-        return UserCreateUpdateSerializer
-
-    def get_permissions(self):
-        if self.action == "create":
-            # anyone can register
-            return [AllowAny()]
-        # all other actions require auth
-        return [IsAuthenticated()]
-
-    def get_queryset(self):
-        # even for list/retrieve, lock down to yourself
-        return User.objects.filter(id=self.request.user.id)
+# REMOVED: UserViewSet - Security fix
+# User management is handled by dedicated auth endpoints:
+# - auth/register/ (registration)
+# - auth/login/ (login)
+# - auth/profile/ (profile management)
+# - auth/change-password/ (password changes)
 
 
 # Custom API endpoints
