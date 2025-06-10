@@ -6,9 +6,13 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .models import Order, OrderItem, Payment
+from .models import Order, OrderItem, OrderSettings
 from .services.checkout import CheckoutService, OrderService
 from cart.services.cart_manager import CartService
+from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from .serializers import OrderSettingsSerializer
 import stripe
 import json
 
@@ -380,3 +384,21 @@ def digital_download(request, download_token):
         return redirect(
             "checkout:order_detail", order_number=order_item.order.order_number
         )
+
+
+class OrderSettingsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for order page settings (read-only)
+    """
+
+    serializer_class = OrderSettingsSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return OrderSettings.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        """Return the single settings instance as detail"""
+        settings = OrderSettings.get_settings()
+        serializer = self.get_serializer(settings)
+        return Response(serializer.data)

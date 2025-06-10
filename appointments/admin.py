@@ -9,6 +9,8 @@ from .models import (
     Availability,
     Appointment,
     BookingSettings,
+    AppointmentSettings,
+    CalendarSettings,
 )
 from django.db import models
 from tinymce.widgets import TinyMCE as RichTextEditorWidget
@@ -423,3 +425,89 @@ class BookingSettingsAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("calendar_user__user")
+
+
+@admin.register(AppointmentSettings)
+class AppointmentSettingsAdmin(admin.ModelAdmin):
+    """
+    Admin for appointment page settings - singleton model
+    """
+
+    def has_add_permission(self, request):
+        """Only allow adding if no instance exists"""
+        return not AppointmentSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Don't allow deletion of settings"""
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the single instance edit page"""
+        try:
+            settings = AppointmentSettings.get_settings()
+            return self.changeform_view(request, str(settings.pk))
+        except Exception:
+            return super().changelist_view(request, extra_context)
+
+    fieldsets = (
+        (
+            "Page Content",
+            {
+                "fields": ("page_title", "page_subtitle", "page_description"),
+                "description": "Main content for the appointments management page header",
+            },
+        ),
+    )
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": RichTextEditorWidget(attrs={"cols": 80, "rows": 10})
+        },
+    }
+
+
+@admin.register(CalendarSettings)
+class CalendarSettingsAdmin(admin.ModelAdmin):
+    """
+    Admin for calendar page settings - singleton model
+    """
+
+    def has_add_permission(self, request):
+        """Only allow adding if no instance exists"""
+        return not CalendarSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Don't allow deletion of settings"""
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the single instance edit page"""
+        try:
+            settings = CalendarSettings.get_settings()
+            return self.changeform_view(request, str(settings.pk))
+        except Exception:
+            return super().changelist_view(request, extra_context)
+
+    fieldsets = (
+        (
+            "Page Content",
+            {
+                "fields": ("page_title", "page_subtitle", "page_description"),
+                "description": "Main content for the calendar booking page header",
+            },
+        ),
+        (
+            "Booking Instructions",
+            {
+                "fields": ("booking_instructions",),
+                "description": "Additional instructions shown on the booking page",
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": RichTextEditorWidget(attrs={"cols": 80, "rows": 10})
+        },
+    }

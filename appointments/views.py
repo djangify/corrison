@@ -7,12 +7,15 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from checkout.models import Order
 from .signals import send_appointment_updated_email
+from .serializers import AppointmentSettingsSerializer, CalendarSettingsSerializer
 
 from .models import (
     CalendarUser,
     AppointmentType,
     Availability,
     Appointment,
+    AppointmentSettings,
+    CalendarSettings,
 )
 from .serializers import (
     CalendarUserSerializer,
@@ -782,3 +785,39 @@ def calculate_available_slots_excluding_appointment(
         current_date += timedelta(days=1)
 
     return available_slots
+
+
+class AppointmentSettingsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for appointment page settings (read-only)
+    """
+
+    serializer_class = AppointmentSettingsSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return AppointmentSettings.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        """Return the single settings instance as detail"""
+        settings = AppointmentSettings.get_settings()
+        serializer = self.get_serializer(settings)
+        return Response(serializer.data)
+
+
+class CalendarSettingsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for calendar page settings (read-only)
+    """
+
+    serializer_class = CalendarSettingsSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return CalendarSettings.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        """Return the single settings instance as detail"""
+        settings = CalendarSettings.get_settings()
+        serializer = self.get_serializer(settings)
+        return Response(serializer.data)

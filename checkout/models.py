@@ -353,3 +353,53 @@ class Payment(TimestampedModel):
         elif self.status == "refunded" and self.order.payment_status != "refunded":
             self.order.payment_status = "refunded"
             self.order.save()
+
+
+class OrderSettings(models.Model):
+    """
+    Settings for the order history page
+    """
+
+    page_title = models.CharField(
+        max_length=200,
+        default="Order History",
+        help_text="Main heading for the order history page",
+    )
+    page_subtitle = models.CharField(
+        max_length=300, blank=True, help_text="Optional subtitle below the main heading"
+    )
+    page_description = models.TextField(
+        default="Track your orders, view details, and manage your purchases.",
+        help_text="Description text below the heading",
+    )
+
+    class Meta:
+        verbose_name = "Order Page Settings"
+        verbose_name_plural = "Order Page Settings"
+
+    def __str__(self):
+        return "Order Page Settings"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists"""
+        if not self.pk and OrderSettings.objects.exists():
+            # If this is a new instance and one already exists, update the existing one
+            existing = OrderSettings.objects.first()
+            existing.page_title = self.page_title
+            existing.page_subtitle = self.page_subtitle
+            existing.page_description = self.page_description
+            existing.save()
+            return existing
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create the settings instance"""
+        settings, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "page_title": "Order History",
+                "page_description": "Track your orders, view details, and manage your purchases.",
+            },
+        )
+        return settings

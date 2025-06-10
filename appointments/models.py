@@ -403,3 +403,110 @@ class BookingSettings(models.Model):
 
     def __str__(self):
         return f"Booking Settings - {self.calendar_user.user.username}"
+
+
+class AppointmentSettings(models.Model):
+    """
+    Settings for the appointments management page (where users view their appointments)
+    """
+
+    page_title = models.CharField(
+        max_length=200,
+        default="Your Appointments",
+        help_text="Main heading for the appointments page",
+    )
+    page_subtitle = models.CharField(
+        max_length=300, blank=True, help_text="Optional subtitle below the main heading"
+    )
+    page_description = models.TextField(
+        default="View and manage all your appointments in one place.",
+        help_text="Description text below the heading",
+    )
+
+    class Meta:
+        verbose_name = "Appointment Page Settings"
+        verbose_name_plural = "Appointment Page Settings"
+
+    def __str__(self):
+        return "Appointment Page Settings"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists"""
+        if not self.pk and AppointmentSettings.objects.exists():
+            # If this is a new instance and one already exists, update the existing one
+            existing = AppointmentSettings.objects.first()
+            existing.page_title = self.page_title
+            existing.page_subtitle = self.page_subtitle
+            existing.page_description = self.page_description
+            existing.save()
+            return existing
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create the settings instance"""
+        settings, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "page_title": "Your Appointments",
+                "page_description": "View and manage all your appointments in one place.",
+            },
+        )
+        return settings
+
+
+class CalendarSettings(models.Model):
+    """
+    Settings for the calendar booking page (where users book appointments)
+    """
+
+    page_title = models.CharField(
+        max_length=200,
+        default="Book An Appointment",
+        help_text="Main heading for the calendar booking page",
+    )
+    page_subtitle = models.CharField(
+        max_length=300, blank=True, help_text="Optional subtitle below the main heading"
+    )
+    page_description = models.TextField(
+        default="Select your preferred date and time from our available slots.",
+        help_text="Description text below the heading",
+    )
+
+    # Additional calendar-specific settings
+    booking_instructions = models.TextField(
+        blank=True,
+        help_text="Additional instructions shown on the booking page",
+    )
+
+    class Meta:
+        verbose_name = "Calendar Page Settings"
+        verbose_name_plural = "Calendar Page Settings"
+
+    def __str__(self):
+        return "Calendar Page Settings"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists"""
+        if not self.pk and CalendarSettings.objects.exists():
+            # If this is a new instance and one already exists, update the existing one
+            existing = CalendarSettings.objects.first()
+            existing.page_title = self.page_title
+            existing.page_subtitle = self.page_subtitle
+            existing.page_description = self.page_description
+            existing.booking_instructions = self.booking_instructions
+            existing.save()
+            return existing
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        """Get or create the settings instance"""
+        settings, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "page_title": "Book An Appointment",
+                "page_description": "Select your preferred date and time from our available slots.",
+            },
+        )
+        return settings

@@ -7,6 +7,8 @@ from .models import (
     Availability,
     Appointment,
     BookingSettings,
+    AppointmentSettings,
+    CalendarSettings,
 )
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -250,7 +252,6 @@ class BookAppointmentSerializer(serializers.Serializer):
         """Validate booking data"""
         appointment_type = AppointmentType.objects.get(id=data["appointment_type_id"])
         date = data["date"]
-        start_time = data["start_time"]
 
         # Check if date is in the past
         if date < timezone.now().date():
@@ -411,4 +412,29 @@ class CustomerAppointmentSerializer(serializers.ModelSerializer):
             "can_be_cancelled",
             "created_at",
             "confirmed_at",
+        ]
+
+
+class AppointmentSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for appointment page settings"""
+
+    class Meta:
+        model = AppointmentSettings
+        fields = [
+            "page_title",
+            "page_subtitle",
+            "page_description",
+        ]
+
+
+class CalendarSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for calendar page settings"""
+
+    class Meta:
+        model = CalendarSettings
+        fields = [
+            "page_title",
+            "page_subtitle",
+            "page_description",
+            "booking_instructions",
         ]

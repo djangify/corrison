@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import Order, OrderItem, Payment
+from .models import Order, OrderItem, Payment, OrderSettings
+from django.db import models
+from tinymce.widgets import TinyMCE as RichTextEditorWidget
 
 
 class OrderItemInline(admin.TabularInline):
@@ -253,3 +255,42 @@ class PaymentAdmin(admin.ModelAdmin):
         "created_at",
     )
     date_hierarchy = "created_at"
+
+
+@admin.register(OrderSettings)
+class OrderSettingsAdmin(admin.ModelAdmin):
+    """
+    Admin for order page settings - singleton model
+    """
+
+    def has_add_permission(self, request):
+        """Only allow adding if no instance exists"""
+        return not OrderSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Don't allow deletion of settings"""
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        """Redirect to the single instance edit page"""
+        try:
+            settings = OrderSettings.get_settings()
+            return self.changeform_view(request, str(settings.pk))
+        except Exception:
+            return super().changelist_view(request, extra_context)
+
+    fieldsets = (
+        (
+            "Page Content",
+            {
+                "fields": ("page_title", "page_subtitle", "page_description"),
+                "description": "Main content for the order history page header",
+            },
+        ),
+    )
+
+    formfield_overrides = {
+        models.TextField: {
+            "widget": RichTextEditorWidget(attrs={"cols": 80, "rows": 10})
+        },
+    }

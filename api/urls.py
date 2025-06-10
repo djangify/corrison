@@ -5,11 +5,13 @@ from accounts.views import WishlistViewSet
 from blog.views import BlogPostViewSet
 from linkhub.views import LinkHubViewSet
 from pages.views import PageViewSet, TestimonialViewSet
-from courses import views as courses_views
 from accounts import api_views as auth_views
+from checkout.views import OrderSettingsViewSet
 from cart.views import CartViewSet, CartItemViewSet
 from appointments.views import (
     CalendarUserViewSet,
+    CalendarSettingsViewSet,
+    AppointmentSettingsViewSet,
     AppointmentTypeViewSet,
     AvailabilityViewSet,
     AppointmentViewSet,
@@ -40,6 +42,13 @@ router.register(r"testimonials", TestimonialViewSet, basename="testimonial")
 router.register(r"linkhubs", LinkHubViewSet, basename="linkhub")
 router.register(r"cart", CartViewSet, basename="cart")
 router.register(r"items", CartItemViewSet, basename="cart-item")
+router.register(
+    r"appointment-settings", AppointmentSettingsViewSet, basename="appointment-settings"
+)
+router.register(
+    r"calendar-settings", CalendarSettingsViewSet, basename="calendar-settings"
+)
+router.register(r"order-settings", OrderSettingsViewSet, basename="order-settings")
 
 # Appointments endpoints (authenticated - for calendar owners)
 router.register(r"appointments/profiles", CalendarUserViewSet, basename="calendar-user")
