@@ -1,20 +1,27 @@
 from rest_framework import serializers
 from .models import Product, Category, ProductVariant, ProductImage
+from core.mixins import MediaURLMixin  # ADD THIS LINE
 
 
-class CategorySerializer(serializers.ModelSerializer):
+class CategorySerializer(
+    MediaURLMixin, serializers.ModelSerializer
+):  # ADD MediaURLMixin
     class Meta:
         model = Category
         fields = ["id", "name", "slug", "description", "image"]
 
 
-class ProductImageSerializer(serializers.ModelSerializer):
+class ProductImageSerializer(
+    MediaURLMixin, serializers.ModelSerializer
+):  # ADD MediaURLMixin
     class Meta:
         model = ProductImage
         fields = ["id", "image", "alt_text", "is_primary"]
 
 
-class ProductVariantSerializer(serializers.ModelSerializer):
+class ProductVariantSerializer(
+    MediaURLMixin, serializers.ModelSerializer
+):  # ADD MediaURLMixin
     effective_digital_file = serializers.SerializerMethodField()
 
     class Meta:
@@ -44,7 +51,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         return None
 
 
-class ProductSerializer(serializers.ModelSerializer):
+class ProductSerializer(
+    MediaURLMixin, serializers.ModelSerializer
+):  # ADD MediaURLMixin
     category = CategorySerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
@@ -54,6 +63,9 @@ class ProductSerializer(serializers.ModelSerializer):
     is_downloadable = serializers.BooleanField(read_only=True)
     is_unlimited_download = serializers.BooleanField(read_only=True)
     digital_file_url = serializers.SerializerMethodField()
+
+    # Fixed main_image field
+    main_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -89,6 +101,38 @@ class ProductSerializer(serializers.ModelSerializer):
             "dimensions",
         ]
         read_only_fields = ["id"]  # Explicitly mark id as read-only
+
+    def get_main_image(self, obj):
+        """Return main image URL with fallback to primary ProductImage"""
+        request = self.context.get("request")
+
+        # First try the main_image field
+        if obj.main_image:
+            return (
+                request.build_absolute_uri(obj.main_image.url)
+                if request
+                else obj.main_image.url
+            )
+
+        # Fallback to primary ProductImage
+        primary_image = obj.images.filter(is_primary=True).first()
+        if primary_image:
+            return (
+                request.build_absolute_uri(primary_image.image.url)
+                if request
+                else primary_image.image.url
+            )
+
+        # Fallback to first image if no primary
+        first_image = obj.images.first()
+        if first_image:
+            return (
+                request.build_absolute_uri(first_image.image.url)
+                if request
+                else first_image.image.url
+            )
+
+        return None
 
     def get_digital_file_url(self, obj):
         """Return the digital file URL if it exists"""

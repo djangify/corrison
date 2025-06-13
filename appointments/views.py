@@ -821,3 +821,40 @@ class CalendarSettingsViewSet(viewsets.ReadOnlyModelViewSet):
         settings = CalendarSettings.get_settings()
         serializer = self.get_serializer(settings)
         return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_my_appointments(request):
+    """
+    Get appointments where the authenticated user is the customer
+    This is different from AppointmentViewSet which gets appointments where user is the calendar owner
+    """
+    try:
+        # Get the authenticated user's email
+        user_email = request.user.email
+
+        if not user_email:
+            return Response(
+                {"error": "User email not found"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Find appointments where this user is the customer (by email)
+        appointments = (
+            Appointment.objects.filter(customer_email=user_email)
+            .select_related("appointment_type__calendar_user__user")
+            .order_by("-date", "-start_time")
+        )
+
+        # Serialize the appointments using the customer appointment serializer
+        serializer = CustomerAppointmentSerializer(
+            appointments, many=True, context={"request": request}
+        )
+
+        return Response(serializer.data)
+
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to load appointments: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

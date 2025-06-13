@@ -89,6 +89,14 @@ urlpatterns = [
     path("auth/profile/", auth_views.user_profile, name="user-profile"),
     path("auth/change-password/", auth_views.change_password, name="change-password"),
     # ============================================================
+    # CUSTOMER APPOINTMENTS - NEW ENDPOINT
+    # ============================================================
+    path(
+        "my-appointments/",
+        appointments_views.get_my_appointments,
+        name="my-appointments",
+    ),
+    # ============================================================
     # CUSTOM API ENDPOINTS
     # ============================================================
     path("cart/add/", views.add_to_cart, name="add-to-cart"),

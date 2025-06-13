@@ -157,35 +157,6 @@ EMAIL_VERIFICATION_URL = env(
 )
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@corrisonapi.com")
 
-TINYMCE_DEFAULT_CONFIG = {
-    "height": 650,
-    "width": "auto",
-    "cleanup_on_startup": True,
-    "custom_undo_redo_levels": 20,
-    "selector": "textarea",
-    "theme": "silver",
-    "plugins": """
-        textcolor save link image media preview codesample contextmenu
-        table code lists fullscreen insertdatetime nonbreaking
-        contextmenu directionality searchreplace wordcount visualblocks
-        visualchars code fullscreen autolink lists charmap print hr
-        anchor pagebreak
-        """,
-    "toolbar1": """
-        fullscreen preview bold italic underline | fontselect,
-        fontsizeselect | forecolor backcolor | alignleft alignright |
-        aligncenter alignjustify | indent outdent | bullist numlist table |
-        | link image media | codesample |
-        """,
-    "toolbar2": """
-        visualblocks visualchars |
-        charmap hr pagebreak nonbreaking anchor | code |
-        """,
-    "contextmenu": "formats | link image",
-    "menubar": True,
-    "statusbar": True,
-}
-
 # Database
 DATABASES = {
     "default": {
@@ -224,3 +195,67 @@ if not hasattr(locals(), "SITE_URL"):
 
 # Site name for emails
 SITE_NAME = "Corrison"
+
+# Updated TinyMCE configuration for base.py
+# Replace the existing TINYMCE_DEFAULT_CONFIG in your base.py with this:
+
+TINYMCE_DEFAULT_CONFIG = {
+    "height": 650,
+    "width": "auto",
+    "cleanup_on_startup": True,
+    "custom_undo_redo_levels": 20,
+    "selector": "textarea",
+    "theme": "silver",
+    "plugins": """
+        textcolor save link image media preview codesample contextmenu
+        table code lists fullscreen insertdatetime nonbreaking
+        contextmenu directionality searchreplace wordcount visualblocks
+        visualchars code fullscreen autolink lists charmap print hr
+        anchor pagebreak
+        """,
+    "toolbar1": """
+        fullscreen preview bold italic underline | fontselect,
+        fontsizeselect | forecolor backcolor | alignleft alignright |
+        aligncenter alignjustify | indent outdent | bullist numlist table |
+        | link image media | codesample |
+        """,
+    "toolbar2": """
+        visualblocks visualchars |
+        charmap hr pagebreak nonbreaking anchor | code |
+        """,
+    "contextmenu": "formats | link image",
+    "menubar": True,
+    "statusbar": True,
+    # MEDIA HANDLING CONFIGURATION
+    "relative_urls": False,
+    "remove_script_host": False,
+    "convert_urls": True,
+    "document_base_url": "https://corrison.corrisonapi.com/",
+    # Image handling
+    "automatic_uploads": True,
+    "images_upload_url": "/admin/upload/",  # You may need to create this endpoint
+    "images_upload_base_path": "/media/",
+    "images_upload_credentials": True,
+    # File handling
+    "file_picker_types": "image media",
+    "file_picker_callback": """
+        function(callback, value, meta) {
+            if (meta.filetype === 'image') {
+                var input = document.createElement('input');
+                input.setAttribute('type', 'file');
+                input.setAttribute('accept', 'image/*');
+                input.onchange = function() {
+                    var file = this.files[0];
+                    var reader = new FileReader();
+                    reader.onload = function() {
+                        callback(reader.result, {
+                            alt: file.name
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                };
+                input.click();
+            }
+        }
+    """,
+}
