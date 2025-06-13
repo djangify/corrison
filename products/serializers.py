@@ -1,27 +1,31 @@
+# products/serializers.py
 from rest_framework import serializers
 from .models import Product, Category, ProductVariant, ProductImage
-from core.mixins import MediaURLMixin  # ADD THIS LINE
+from core.utils import process_content_media_urls
 
 
-class CategorySerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name", "slug", "description", "image"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
 
-class ProductImageSerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+        # Process the description field for embedded media URLs
+        if "description" in data and data["description"]:
+            data["description"] = process_content_media_urls(data["description"])
+
+        return data
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
         fields = ["id", "image", "alt_text", "is_primary"]
 
 
-class ProductVariantSerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class ProductVariantSerializer(serializers.ModelSerializer):
     effective_digital_file = serializers.SerializerMethodField()
 
     class Meta:
@@ -51,9 +55,7 @@ class ProductVariantSerializer(
         return None
 
 
-class ProductSerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
@@ -143,3 +145,12 @@ class ProductSerializer(
                 else None
             )
         return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # Process the description field for embedded media URLs
+        if "description" in data and data["description"]:
+            data["description"] = process_content_media_urls(data["description"])
+
+        return data

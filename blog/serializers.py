@@ -1,11 +1,10 @@
+# blog/serializers.py
 from rest_framework import serializers
 from .models import BlogCategory, BlogPost
-from core.mixins import MediaURLMixin  # ADD THIS LINE
+from core.utils import process_content_media_urls
 
 
-class BlogCategorySerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class BlogCategorySerializer(serializers.ModelSerializer):
     post_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -16,9 +15,7 @@ class BlogCategorySerializer(
         return obj.posts.filter(status="published").count()
 
 
-class BlogPostSerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class BlogPostSerializer(serializers.ModelSerializer):
     category = BlogCategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=BlogCategory.objects.all(),
@@ -74,3 +71,12 @@ class BlogPostSerializer(
         if obj.attachment:
             return obj.attachment.url
         return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # Process the content field for embedded media URLs
+        if "content" in data and data["content"]:
+            data["content"] = process_content_media_urls(data["content"])
+
+        return data

@@ -1,6 +1,7 @@
 # pages/serializers.py
 from rest_framework import serializers
 from .models import Page, PageFeature, Testimonial, PageTestimonial
+from core.utils import process_content_media_urls
 
 
 class TestimonialSerializer(serializers.ModelSerializer):
@@ -21,6 +22,15 @@ class TestimonialSerializer(serializers.ModelSerializer):
             "order",
         ]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # Process the content field for embedded media URLs
+        if "content" in data and data["content"]:
+            data["content"] = process_content_media_urls(data["content"])
+
+        return data
+
 
 class PageTestimonialSerializer(serializers.ModelSerializer):
     """Serializer for page-testimonial relationship with full testimonial data"""
@@ -36,6 +46,15 @@ class PageFeatureSerializer(serializers.ModelSerializer):
     class Meta:
         model = PageFeature
         fields = ["id", "title", "content", "icon", "order"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # Process the content field for embedded media URLs
+        if "content" in data and data["content"]:
+            data["content"] = process_content_media_urls(data["content"])
+
+        return data
 
 
 class PageSerializer(serializers.ModelSerializer):
@@ -110,6 +129,23 @@ class PageSerializer(serializers.ModelSerializer):
     def get_is_landing_page(self, obj):
         """Check if this is a landing page"""
         return obj.is_landing_page()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # Process content fields for embedded media URLs
+        content_fields = [
+            "content",
+            "hero_content",
+            "hero_right_content",
+            "middle_section_content",
+            "end_section_content",
+        ]
+        for field in content_fields:
+            if field in data and data[field]:
+                data[field] = process_content_media_urls(data[field])
+
+        return data
 
 
 class PageListSerializer(serializers.ModelSerializer):

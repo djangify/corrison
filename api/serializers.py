@@ -6,14 +6,11 @@ from django.contrib.auth import get_user_model
 # User serialization is now handled by accounts.api_views
 
 from products.models import Category
-from core.mixins import MediaURLMixin  # ADD THIS LINE
 
 User = get_user_model()
 
 
-class OrderItemSerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class OrderItemSerializer(serializers.ModelSerializer):
     product = serializers.StringRelatedField()
     variant = serializers.StringRelatedField()
 
@@ -53,7 +50,7 @@ class OrderItemSerializer(
         return None
 
 
-class OrderSerializer(MediaURLMixin, serializers.ModelSerializer):  # ADD MediaURLMixin
+class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     user = serializers.StringRelatedField()
 
@@ -94,9 +91,7 @@ class OrderSerializer(MediaURLMixin, serializers.ModelSerializer):  # ADD MediaU
         return obj.get_delivery_email()
 
 
-class PaymentSerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class PaymentSerializer(serializers.ModelSerializer):
     order = serializers.StringRelatedField()
 
     class Meta:
@@ -122,9 +117,7 @@ class PaymentSerializer(
 # See accounts.api_views for secure user management
 
 
-class CategorySerializer(
-    MediaURLMixin, serializers.ModelSerializer
-):  # ADD MediaURLMixin
+class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ("id", "name", "slug", "description", "image")
