@@ -1,7 +1,6 @@
-# blog/serializers.py
+# blog / serializers.py
 from rest_framework import serializers
 from .models import BlogCategory, BlogPost
-from core.utils import process_content_media_urls
 
 
 class BlogCategorySerializer(serializers.ModelSerializer):
@@ -71,12 +70,3 @@ class BlogPostSerializer(serializers.ModelSerializer):
         if obj.attachment:
             return obj.attachment.url
         return None
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-
-        # Process the content field for embedded media URLs
-        if "content" in data and data["content"]:
-            data["content"] = process_content_media_urls(data["content"])
-
-        return data

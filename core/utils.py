@@ -1,4 +1,3 @@
-# core/utils.py
 import re
 from django.conf import settings
 from urllib.parse import urljoin
@@ -24,12 +23,19 @@ def process_content_media_urls(content):
     if not content:
         return content
 
-    # Get the base URL for the site
-    # In production this will be your domain, in development it could be localhost
-    if hasattr(settings, "SITE_URL"):
-        base_url = settings.SITE_URL
+    # Get the base URL for the Django backend (where media files are served)
+    # This should be the Django backend domain, not the frontend domain
+    if hasattr(settings, "DJANGO_BACKEND_URL"):
+        base_url = settings.DJANGO_BACKEND_URL
+    elif hasattr(settings, "SITE_URL"):
+        # Check if SITE_URL is the backend URL
+        if "corrison.corrisonapi.com" in settings.SITE_URL:
+            base_url = settings.SITE_URL
+        else:
+            # SITE_URL is frontend, use backend URL
+            base_url = "https://corrison.corrisonapi.com"
     else:
-        # Fallback - you may want to set SITE_URL in your settings
+        # Fallback to the Django backend URL
         base_url = "https://corrison.corrisonapi.com"
 
     # Pattern to match img src attributes with relative /media/ URLs

@@ -193,6 +193,9 @@ COURSES_SETTINGS = {
 if not hasattr(locals(), "SITE_URL"):
     SITE_URL = "https://corrisonapi.com"
 
+# Django backend URL for media processing (where images are actually served)
+DJANGO_BACKEND_URL = "https://corrison.corrisonapi.com"
+
 # Site name for emails
 SITE_NAME = "Corrison"
 

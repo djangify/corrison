@@ -1,22 +1,12 @@
 # products/serializers.py
 from rest_framework import serializers
 from .models import Product, Category, ProductVariant, ProductImage
-from core.utils import process_content_media_urls
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name", "slug", "description", "image"]
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-
-        # Process the description field for embedded media URLs
-        if "description" in data and data["description"]:
-            data["description"] = process_content_media_urls(data["description"])
-
-        return data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -110,29 +100,27 @@ class ProductSerializer(serializers.ModelSerializer):
 
         # First try the main_image field
         if obj.main_image:
-            return (
-                request.build_absolute_uri(obj.main_image.url)
-                if request
-                else obj.main_image.url
-            )
+            if request:
+                return request.build_absolute_uri(obj.main_image.url)
+            else:
+                # No request context, build absolute URL manually
+                return f"https://corrison.corrisonapi.com{obj.main_image.url}"
 
         # Fallback to primary ProductImage
         primary_image = obj.images.filter(is_primary=True).first()
         if primary_image:
-            return (
-                request.build_absolute_uri(primary_image.image.url)
-                if request
-                else primary_image.image.url
-            )
+            if request:
+                return request.build_absolute_uri(primary_image.image.url)
+            else:
+                return f"https://corrison.corrisonapi.com{primary_image.image.url}"
 
         # Fallback to first image if no primary
         first_image = obj.images.first()
         if first_image:
-            return (
-                request.build_absolute_uri(first_image.image.url)
-                if request
-                else first_image.image.url
-            )
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            else:
+                return f"https://corrison.corrisonapi.com{first_image.image.url}"
 
         return None
 
@@ -145,12 +133,3 @@ class ProductSerializer(serializers.ModelSerializer):
                 else None
             )
         return None
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-
-        # Process the description field for embedded media URLs
-        if "description" in data and data["description"]:
-            data["description"] = process_content_media_urls(data["description"])
-
-        return data
