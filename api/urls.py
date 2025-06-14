@@ -99,9 +99,10 @@ urlpatterns = [
     # ============================================================
     # CUSTOM API ENDPOINTS
     # ============================================================
-    path("cart/add/", views.add_to_cart, name="add-to-cart"),
-    path("cart/update/", views.update_cart_item, name="update-cart-item"),
-    path("cart/remove/", views.remove_cart_item, name="remove-cart-item"),
+    # REMOVED: Conflicting cart endpoints - now handled by DRF CartItemViewSet
+    # path("cart/add/", views.add_to_cart, name="add-to-cart"),
+    # path("cart/update/", views.update_cart_item, name="update-cart-item"),
+    # path("cart/remove/", views.remove_cart_item, name="remove-cart-item"),
     path("", include("core.urls")),
     path(
         "create-payment-intent/",

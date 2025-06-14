@@ -7,6 +7,9 @@ from rest_framework.permissions import (
 )
 from rest_framework.decorators import api_view
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import HttpResponse
 
 from products.models import Product, Category
 from checkout.models import Order, Payment
@@ -35,13 +38,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         "name",
         "price",
         "created_at",
-    ]  # Removed "effective_price" - use model property instead
+    ]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-
-        # REMOVED: effective_price annotation that was conflicting with model property
-        # The Product model already has an effective_price property, so we don't need to annotate it
 
         # Add manual filtering
         category_slug = self.request.query_params.get("category", None)
@@ -106,46 +106,77 @@ class PaymentViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(order__user=self.request.user)
 
 
-# REMOVED: UserViewSet - Security fix
-# User management is handled by dedicated auth endpoints:
-# - auth/register/ (registration)
-# - auth/login/ (login)
-# - auth/profile/ (profile management)
-# - auth/change-password/ (password changes)
-
-
-# Custom API endpoints
-@api_view(["POST"])
-def add_to_cart(request):
-    # Handle adding items to cart
-    pass
-
-
-@api_view(["PUT"])
-def update_cart_item(request):
-    # Handle updating cart item quantity
-    pass
-
-
-@api_view(["DELETE"])
-def remove_cart_item(request):
-    # Handle removing items from cart
-    pass
-
-
 @api_view(["POST"])
 def create_payment_intent(request):
-    # Handle Stripe payment intent creation
-    pass
+    """
+    Handle Stripe payment intent creation.
+    """
+    # TODO: Implement Stripe payment intent creation
+    return Response(
+        {"error": "Payment intent creation not implemented"},
+        status=status.HTTP_501_NOT_IMPLEMENTED,
+    )
 
 
 @api_view(["POST"])
 def create_order(request):
-    # Handle order creation
-    pass
+    """
+    Handle order creation.
+    """
+    # TODO: Implement order creation
+    return Response(
+        {"error": "Order creation not implemented"},
+        status=status.HTTP_501_NOT_IMPLEMENTED,
+    )
 
 
 @api_view(["GET"])
 def placeholder_image(request, width, height):
-    # Generate placeholder images
-    pass
+    """
+    Generate placeholder images dynamically.
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+
+        # Validate dimensions
+        width = max(1, min(2000, int(width)))
+        height = max(1, min(2000, int(height)))
+
+        # Create image
+        image = Image.new("RGB", (width, height), color="#e5e7eb")
+        draw = ImageDraw.Draw(image)
+
+        # Add text
+        text = f"{width}×{height}"
+        try:
+            # Try to use a default font
+            font = ImageFont.truetype("arial.ttf", size=min(width, height) // 10)
+        except (OSError, IOError):
+            # Fallback to default font
+            font = ImageFont.load_default()
+
+        # Calculate text position
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (width - text_width) // 2
+        y = (height - text_height) // 2
+
+        # Draw text
+        draw.text((x, y), text, fill="#6b7280", font=font)
+
+        # Save to bytes
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        return HttpResponse(buffer.read(), content_type="image/png")
+
+    except Exception:
+        # Return a simple 1x1 pixel image on error
+        image = Image.new("RGB", (1, 1), color="#e5e7eb")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+        return HttpResponse(buffer.read(), content_type="image/png")

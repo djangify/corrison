@@ -167,6 +167,13 @@ class CourseViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
     def my_courses(self, request):
         """Get courses the user is enrolled in"""
+        # Additional safety check for anonymous users
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         enrollments = (
             Enrollment.objects.filter(user=request.user)
             .select_related("course__instructor", "course__category")
