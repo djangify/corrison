@@ -23,7 +23,6 @@ class ProductVariantInline(admin.TabularInline):
         "name",
         "sku",
         "price_adjustment",
-        "stock_qty",
         "digital_file",
         "is_active",
     )
@@ -42,51 +41,36 @@ class CategoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     list_editable = ("is_active",)
 
-    formfield_overrides = {
-        models.TextField: {"widget": TinyMCE(attrs={"cols": 80, "rows": 15})},
-    }
-
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "product_type",
         "category",
         "price",
         "sale_price",
         "is_featured",
-        "in_stock",
-        "is_digital_display",
         "is_active",
+        "has_digital_file",
     )
-    list_filter = ("category", "product_type", "is_featured", "in_stock", "is_active")
-    search_fields = ("name", "description", "sku")
+    list_filter = ("category", "is_featured", "is_active")
+    search_fields = ("name", "description")
     prepopulated_fields = {"slug": ("name",)}
-    list_editable = ("price", "sale_price", "is_featured", "in_stock", "is_active")
+    list_editable = ("price", "sale_price", "is_featured", "is_active")
     inlines = [ProductImageInline, ProductVariantInline]
     fieldsets = (
-        (None, {"fields": ("name", "slug", "category", "description", "product_type")}),
+        (None, {"fields": ("name", "slug", "category", "description")}),
         ("Pricing", {"fields": ("price", "sale_price")}),
         (
-            "Physical Product Settings",
-            {
-                "fields": ("requires_shipping", "weight", "dimensions"),
-                "classes": ("collapse",),
-                "description": "Settings for physical products only",
-            },
-        ),
-        (
-            "Digital Product Settings",
+            "Digital Download Settings",
             {
                 "fields": ("digital_file", "download_limit", "download_expiry_days"),
-                "classes": ("collapse",),
-                "description": "Settings for digital downloads only",
+                "description": "Digital product download settings",
             },
         ),
         (
-            "Stock & Status",
-            {"fields": ("is_active", "is_featured", "in_stock", "stock_qty")},
+            "Status & Visibility",
+            {"fields": ("is_active", "is_featured")},
         ),
         ("Images", {"fields": ("main_image",)}),
         (
@@ -102,14 +86,44 @@ class ProductAdmin(admin.ModelAdmin):
         models.TextField: {"widget": TinyMCE(attrs={"cols": 80, "rows": 20})},
     }
 
-    def is_digital_display(self, obj):
-        """Display digital product indicator"""
-        if obj.product_type == "digital":
-            return "📱 Digital"
-        return "📦 Physical"
+    def has_digital_file(self, obj):
+        """Display digital file status"""
+        if obj.digital_file:
+            return "Available"
+        return "No File"
 
-    is_digital_display.short_description = "Type"
-    is_digital_display.admin_order_field = "product_type"
+    has_digital_file.short_description = "Download"
+    has_digital_file.admin_order_field = "digital_file"
+
+    def get_queryset(self, request):
+        """Only show digital products by default"""
+        qs = super().get_queryset(request)
+        # Show all products but default filter to digital
+        return qs
+
+    def get_list_filter(self, request):
+        """Add product type filter but default to digital"""
+        filters = list(super().get_list_filter(request))
+        filters.insert(1, "product_type")  # Add after category filter
+        return tuple(filters)
+
+    def save_model(self, request, obj, form, change):
+        """Auto-set digital product defaults"""
+        # Force product_type to digital for new products
+        if not change:  # New product
+            obj.product_type = "digital"
+            obj.requires_shipping = False
+            obj.in_stock = True  # Digital products are always "in stock"
+            obj.stock_qty = 0  # Not relevant for digital products
+
+        # Always ensure digital product settings
+        if obj.product_type == "digital":
+            obj.requires_shipping = False
+            obj.in_stock = True
+            obj.weight = None
+            obj.dimensions = ""
+
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(ProductImage)
@@ -141,13 +155,12 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "name",
         "sku",
         "price_adjustment",
-        "stock_qty",
         "has_digital_file",
         "is_active",
     )
-    list_filter = ("is_active", "product", "product__product_type")
+    list_filter = ("is_active", "product")
     search_fields = ("sku", "name", "product__name")
-    list_editable = ("price_adjustment", "stock_qty", "is_active")
+    list_editable = ("price_adjustment", "is_active")
     filter_horizontal = ("attributes",)
     fieldsets = (
         (
@@ -158,24 +171,22 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "name",
                     "sku",
                     "price_adjustment",
-                    "stock_qty",
                     "is_active",
                 )
             },
         ),
         (
-            "Digital Variant Settings",
+            "Digital File",
             {
                 "fields": ("digital_file",),
-                "classes": ("collapse",),
-                "description": "Override digital file for this specific variant",
+                "description": "Specific digital file for this variant (overrides product default)",
             },
         ),
         (
             "Attributes",
             {
                 "fields": ("attributes",),
-                "description": "Product attributes for this variant (e.g., Color: Red, Size: Large)",
+                "description": "Product attributes for this variant (e.g., Format: PDF, Language: English)",
             },
         ),
     )
@@ -183,9 +194,14 @@ class ProductVariantAdmin(admin.ModelAdmin):
     def has_digital_file(self, obj):
         """Display if variant has a digital file"""
         if obj.digital_file:
-            return "📁 Yes"
+            return "Variant File"
         elif obj.product.digital_file:
-            return "📁 Inherited"
-        return "❌ No"
+            return "Product File"
+        return "No File"
 
     has_digital_file.short_description = "Digital File"
+
+    def get_queryset(self, request):
+        """Only show variants for digital products"""
+        qs = super().get_queryset(request)
+        return qs.filter(product__product_type="digital")

@@ -13,14 +13,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class CartViewSet(viewsets.GenericViewSet):
-    serializer_class = CartSerializer
+class CartViewSet(viewsets.ViewSet):  # CHANGED: GenericViewSet → ViewSet
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def get_cart_from_request(self, request):
         """
-        Get or create a cart based on the request.
-        Checks for cart token in Authorization header or creates new cart.
+        Get or create cart - simplified for digital products.
         """
         # Try to get token from Authorization header
         auth_header = request.headers.get("Authorization", "")
@@ -28,42 +27,56 @@ class CartViewSet(viewsets.GenericViewSet):
 
         if auth_header.startswith("Bearer "):
             cart_token = auth_header.split(" ")[1]
+            # Validate token format
+            if not CartTokenManager.is_valid_token(cart_token):
+                cart_token = None
 
-        # Try to get cart by token
+        # Get cart by token
         cart = None
         if cart_token:
-            cart_id = CartTokenManager.decode_cart_token(cart_token)
-            if cart_id:
-                # cart_id is now guaranteed to be an integer from CartTokenManager
-                cart = Cart.objects.filter(id=cart_id, is_active=True).first()
+            try:
+                cart = Cart.objects.filter(token=cart_token, is_active=True).first()
+            except Exception as e:
+                logger.error(f"Error finding cart with token: {e}")
+                cart = None
 
-        # If no cart found and user is authenticated, try to get user's cart
+        # If no cart found and user is authenticated, get user's cart
         if not cart and request.user.is_authenticated:
-            cart = Cart.objects.filter(user=request.user, is_active=True).first()
+            try:
+                cart = Cart.objects.filter(user=request.user, is_active=True).first()
+            except Exception as e:
+                logger.error(f"Error finding user cart: {e}")
 
         # Create new cart if needed
         if not cart:
-            cart = Cart.objects.create(
-                user=request.user if request.user.is_authenticated else None
-            )
-            # Generate token for new cart
-            new_token = CartTokenManager.generate_cart_token(cart.id)
-            cart.token = new_token
-            cart.save()
+            try:
+                cart = Cart.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
+                    token=CartTokenManager.generate_cart_token(),
+                )
+            except Exception as e:
+                logger.error(f"Error creating cart: {e}")
+                return None
 
         # Ensure cart has a token
         if not cart.token:
-            cart.token = CartTokenManager.generate_cart_token(cart.id)
+            cart.token = CartTokenManager.generate_cart_token()
             cart.save()
 
         return cart
 
     def list(self, request):
         """
-        Get the current cart with token.
+        Get the current cart.
         """
         cart = self.get_cart_from_request(request)
-        serializer = self.get_serializer(cart)
+        if not cart:
+            return Response(
+                {"error": "Failed to create cart"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        serializer = CartSerializer(cart)
 
         # Add token to response
         data = serializer.data
@@ -74,54 +87,76 @@ class CartViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=["post"])
     def clear(self, request):
         """
-        Clear all items from the cart.
+        Clear all items from cart.
         """
         cart = self.get_cart_from_request(request)
+        if not cart:
+            return Response(
+                {"error": "Cart not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
         cart.clear()
 
-        serializer = self.get_serializer(cart)
+        serializer = CartSerializer(cart)
         data = serializer.data
         data["token"] = cart.token
 
         return Response(data)
 
 
+# CartItemViewSet stays the same - it already works with ModelViewSet
 class CartItemViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = CartItemSerializer
 
     def get_queryset(self):
         cart = self.get_cart_from_request(self.request)
+        if not cart:
+            return CartItem.objects.none()
         return CartItem.objects.filter(cart=cart)
 
     def get_cart_from_request(self, request):
         """
-        Get cart from request using CartViewSet's method
+        Get cart from request using CartViewSet's method.
         """
         cart_viewset = CartViewSet()
         return cart_viewset.get_cart_from_request(request)
 
     def create(self, request, *args, **kwargs):
         """
-        Add an item to the cart.
+        Add item to cart - simplified for digital products.
         """
         cart = self.get_cart_from_request(request)
+        if not cart:
+            return Response(
+                {"error": "Failed to access cart"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         product_id = request.data.get("product")
         variant_id = request.data.get("variant")
-        quantity = int(request.data.get("quantity", 1))
+        quantity = request.data.get("quantity", 1)
 
-        # Convert product_id to integer
+        # Convert and validate product_id
         try:
             product_id = int(product_id)
+            quantity = int(quantity)
         except (ValueError, TypeError):
             return Response(
-                {"error": "Invalid product ID format"},
+                {"error": "Invalid product ID or quantity format"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate product
-        product = get_object_or_404(Product, pk=product_id)
+        # Validate product exists
+        try:
+            product = get_object_or_404(Product, pk=product_id, is_active=True)
+        except Exception as e:
+            logger.error(f"Product not found: {product_id}, error: {e}")
+            return Response(
+                {"error": "Product not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Handle variant if provided
         variant = None
@@ -129,30 +164,21 @@ class CartItemViewSet(viewsets.ModelViewSet):
             try:
                 variant_id = int(variant_id)
                 variant = get_object_or_404(
-                    ProductVariant, pk=variant_id, product=product
+                    ProductVariant, pk=variant_id, product=product, is_active=True
                 )
             except (ValueError, TypeError):
                 return Response(
                     {"error": "Invalid variant ID format"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-        # Check stock
-        if variant:
-            if not variant.is_active or variant.stock_qty < quantity:
+            except Exception as e:
+                logger.error(f"Variant not found: {variant_id}, error: {e}")
                 return Response(
-                    {"error": "Not enough stock available"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    {"error": "Variant not found"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-        else:
-            # For digital products, stock checking may not apply
-            if product.product_type == "physical":
-                if not product.in_stock or product.stock_qty < quantity:
-                    return Response(
-                        {"error": "Not enough stock available"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
 
+        # Digital products: no stock checking needed
         # Check if item already exists in cart
         try:
             cart_item = CartItem.objects.get(
@@ -166,6 +192,12 @@ class CartItemViewSet(viewsets.ModelViewSet):
             cart_item = CartItem.objects.create(
                 cart=cart, product=product, variant=variant, quantity=quantity
             )
+        except Exception as e:
+            logger.error(f"Error updating cart item: {e}")
+            return Response(
+                {"error": "Failed to update cart"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         serializer = self.get_serializer(cart_item)
 
@@ -177,33 +209,19 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         """
-        Update cart item quantity.
+        Update cart item quantity - no stock checking for digital products.
         """
         cart_item = self.get_object()
-        quantity = int(request.data.get("quantity", 1))
 
-        # Check stock
-        if cart_item.variant:
-            if (
-                not cart_item.variant.is_active
-                or cart_item.variant.stock_qty < quantity
-            ):
-                return Response(
-                    {"error": "Not enough stock available"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            # For digital products, stock checking may not apply
-            if cart_item.product.product_type == "physical":
-                if (
-                    not cart_item.product.in_stock
-                    or cart_item.product.stock_qty < quantity
-                ):
-                    return Response(
-                        {"error": "Not enough stock available"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+        try:
+            quantity = int(request.data.get("quantity", 1))
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid quantity format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        # Digital products: no stock validation needed
         cart_item.quantity = quantity
         cart_item.save()
 

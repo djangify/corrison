@@ -96,7 +96,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_main_image(self, obj):
         """Return main image URL with fallback to primary ProductImage"""
-        request = self.context.get("request")
+        request = self.context.get(
+            "request"
+        )  # FIXED: Use .get() instead of direct access
 
         # First try the main_image field
         if obj.main_image:
@@ -127,9 +129,43 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_digital_file_url(self, obj):
         """Return the digital file URL if it exists"""
         if obj.digital_file:
-            return (
-                self.context["request"].build_absolute_uri(obj.digital_file.url)
-                if hasattr(obj.digital_file, "url")
-                else None
-            )
+            request = self.context.get(
+                "request"
+            )  # FIXED: Use .get() instead of direct access
+            if request and hasattr(obj.digital_file, "url"):
+                return request.build_absolute_uri(obj.digital_file.url)
+            elif hasattr(obj.digital_file, "url"):
+                # Fallback when no request context
+                return f"https://corrison.corrisonapi.com{obj.digital_file.url}"
         return None
+
+    def to_representation(self, instance):
+        """Convert price fields to floats"""
+        data = super().to_representation(instance)
+
+        # Convert price fields to floats
+        if "price" in data and data["price"] is not None:
+            try:
+                data["price"] = float(data["price"])
+            except (ValueError, TypeError):
+                data["price"] = 0.0
+
+        if "sale_price" in data and data["sale_price"] is not None:
+            try:
+                data["sale_price"] = float(data["sale_price"])
+            except (ValueError, TypeError):
+                data["sale_price"] = None
+
+        if "current_price" in data and data["current_price"] is not None:
+            try:
+                data["current_price"] = float(data["current_price"])
+            except (ValueError, TypeError):
+                data["current_price"] = 0.0
+
+        if "effective_price" in data and data["effective_price"] is not None:
+            try:
+                data["effective_price"] = float(data["effective_price"])
+            except (ValueError, TypeError):
+                data["effective_price"] = 0.0
+
+        return data

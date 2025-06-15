@@ -25,7 +25,7 @@ User = get_user_model()
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint for products.
+    API endpoint for products - digital-only focus.
     """
 
     queryset = Product.objects.filter(is_active=True)
@@ -45,6 +45,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Add manual filtering
         category_slug = self.request.query_params.get("category", None)
+        product_type = self.request.query_params.get("product_type", None)
 
         # Handle both naming conventions for price filters
         min_price = self.request.query_params.get(
@@ -56,6 +57,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
         if category_slug:
             queryset = queryset.filter(category__slug=category_slug)
+
+        # Filter by product type (useful for digital-only filtering)
+        if product_type:
+            queryset = queryset.filter(product_type=product_type)
 
         if min_price:
             queryset = queryset.filter(price__gte=min_price)
@@ -81,7 +86,7 @@ class CategoryViewSet(ReadOnlyModelViewSet):
 
 class OrderViewSet(viewsets.ModelViewSet):
     """
-    Orders: authenticated users only.
+    Orders: authenticated users only - digital-only focus.
     """
 
     # prefetch to pull in the items efficiently
@@ -109,25 +114,116 @@ class PaymentViewSet(viewsets.ModelViewSet):
 @api_view(["POST"])
 def create_payment_intent(request):
     """
-    Handle Stripe payment intent creation.
+    Handle Stripe payment intent creation for digital products.
     """
-    # TODO: Implement Stripe payment intent creation
-    return Response(
-        {"error": "Payment intent creation not implemented"},
-        status=status.HTTP_501_NOT_IMPLEMENTED,
-    )
+    try:
+        import stripe
+        from django.conf import settings
+        from cart.services.cart_manager import CartService
+
+        # Get cart data
+        cart_token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        cart_data = CartService.get_cart_data(request, cart_token)
+
+        if cart_data["item_count"] == 0:
+            return Response(
+                {"error": "Cart is empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Set Stripe API key
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+        # Create payment intent for digital products (no shipping)
+        intent = stripe.PaymentIntent.create(
+            amount=int(cart_data["subtotal"] * 100),  # Convert to cents
+            currency="usd",
+            metadata={
+                "cart_token": cart_data["cart_token"],
+                "item_count": cart_data["item_count"],
+                "is_digital_only": "true",
+            },
+        )
+
+        return Response(
+            {
+                "client_secret": intent.client_secret,
+                "payment_intent_id": intent.id,
+            }
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])
 def create_order(request):
     """
-    Handle order creation.
+    Handle digital-only order creation.
     """
-    # TODO: Implement order creation
-    return Response(
-        {"error": "Order creation not implemented"},
-        status=status.HTTP_501_NOT_IMPLEMENTED,
-    )
+    try:
+        from checkout.services.checkout import CheckoutService
+        from cart.services.cart_manager import CartService
+
+        # Get cart data
+        cart_token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        cart_data = CartService.get_cart_data(request, cart_token)
+
+        if cart_data["item_count"] == 0:
+            return Response(
+                {"error": "Cart is empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get order data from request
+        email = request.data.get("email")
+        if request.user.is_authenticated:
+            email = request.user.email
+        elif not email:
+            return Response(
+                {"error": "Email is required for guest orders"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Digital-only order data
+        order_data = {
+            "email": email,
+            "notes": request.data.get("notes", ""),
+            "payment_method": "stripe",
+            "digital_delivery_email": email,
+            "cart_token": cart_data["cart_token"],
+        }
+
+        # Create the order
+        success, order, error_message = CheckoutService.create_order_from_cart(
+            request, **order_data
+        )
+
+        if not success:
+            return Response(
+                {"error": error_message or "Failed to create order"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Serialize the order
+        serializer = OrderSerializer(order, context={"request": request})
+
+        return Response(
+            {
+                "order": serializer.data,
+                "message": "Order created successfully",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["GET"])
