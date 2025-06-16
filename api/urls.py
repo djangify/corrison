@@ -22,6 +22,8 @@ from courses.views import (
     EnrollmentViewSet,
     CourseSettingsViewSet,
 )
+from checkout.views import create_payment_intent, check_payment_status
+from checkout.webhooks import stripe_webhook
 
 from . import views
 
@@ -99,6 +101,9 @@ urlpatterns = [
         name="create-payment-intent",
     ),
     path("create-order/", views.create_order, name="create-order"),
+    path("create-payment-intent/", create_payment_intent, name="create-payment-intent"),
+    path("check-payment-status/", check_payment_status, name="check-payment-status"),
+    path("stripe/webhook/", stripe_webhook, name="stripe-webhook"),
     # ============================================================
     # UTILITY ENDPOINTS
     # ============================================================

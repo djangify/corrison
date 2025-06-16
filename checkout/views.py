@@ -1,317 +1,168 @@
 # checkout/views.py
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
-from .models import Order, OrderItem, OrderSettings
-from .services.checkout import CheckoutService, OrderService
-from cart.services.cart_manager import CartService
-from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
-from .serializers import OrderSettingsSerializer
+from .models import Order, Payment
+from api.serializers import OrderSerializer, PaymentSerializer
 import stripe
+import logging
+from .models import OrderSettings
+from .serializers import OrderSettingsSerializer
+
+logger = logging.getLogger(__name__)
+
+# Set Stripe API key
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
-def get_cart_token_from_request(request):
+class OrderViewSet(viewsets.ModelViewSet):
     """
-    Get cart token from request - simplified.
+    Orders: authenticated users only - digital-only focus.
     """
-    # Try Authorization header first
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        return auth_header.split(" ")[1]
 
-    # Try from session
-    cart_token = request.session.get("cart_token")
-    if cart_token:
-        return cart_token
+    queryset = Order.objects.prefetch_related("items").all()
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
 
-    # Try from POST data
-    if request.method == "POST":
-        cart_token = request.POST.get("cart_token")
-        if cart_token:
-            return cart_token
-
-    # Try from GET parameters
-    cart_token = request.GET.get("cart_token")
-    if cart_token:
-        return cart_token
-
-    return None
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
 
 
-def checkout(request):
+class PaymentViewSet(viewsets.ModelViewSet):
     """
-    Digital-only checkout view.
+    Payments: authenticated users only.
     """
-    # Get cart token and cart data
-    cart_token = get_cart_token_from_request(request)
-    cart_data = CartService.get_cart_data(request, cart_token)
 
-    # Check if cart is empty
-    if cart_data["item_count"] == 0:
-        messages.warning(
-            request, "Your cart is empty. Please add some items before checking out."
-        )
-        return redirect("products:catalog")
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
 
-    # Store cart token in session for checkout process
-    if cart_data.get("cart_token"):
-        request.session["cart_token"] = cart_data["cart_token"]
-
-    context = {
-        "cart": cart_data["cart"],
-        "items": cart_data["items"],
-        "subtotal": cart_data["subtotal"],
-        "item_count": cart_data["item_count"],
-        "cart_token": cart_data["cart_token"],
-        "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
-        # Digital-only flags
-        "is_digital_only": True,
-        "requires_shipping": False,
-        "has_digital_items": True,
-        "has_physical_items": False,
-    }
-
-    return render(request, "checkout/checkout.html", context)
+    def get_queryset(self):
+        return self.queryset.filter(order__user=self.request.user)
 
 
-def process_checkout(request):
+@api_view(["POST"])
+@permission_classes([AllowAny])  # Allow anonymous checkout
+def create_payment_intent(request):
     """
-    Process digital-only checkout.
+    Create Stripe payment intent for digital products.
+    No shipping address needed.
     """
-    if request.method != "POST":
-        return redirect("checkout:checkout")
+    try:
+        from cart.services.cart_manager import CartService
 
-    # Get cart token and cart data
-    cart_token = get_cart_token_from_request(request)
-    cart_data = CartService.get_cart_data(request, cart_token)
+        # Get cart data
+        cart_token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        cart_data = CartService.get_cart_data(request, cart_token)
 
-    # Check if cart is empty
-    if cart_data["item_count"] == 0:
-        messages.warning(
-            request, "Your cart is empty. Please add some items before checking out."
-        )
-        return redirect("products:catalog")
-
-    # Get form data
-    form_data = request.POST
-
-    # Digital-only order data - no shipping needed
-    order_data = {
-        "email": request.user.email
-        if request.user.is_authenticated
-        else form_data.get("email"),
-        "notes": form_data.get("order_notes", ""),
-        "payment_method": form_data.get("payment_method", "stripe"),
-        "digital_delivery_email": form_data.get("digital_email")
-        or (
-            request.user.email
-            if request.user.is_authenticated
-            else form_data.get("email")
-        ),
-        "cart_token": cart_data.get("cart_token"),
-    }
-
-    # Create the order from cart
-    success, order, error_message = CheckoutService.create_order_from_cart(
-        request, **order_data
-    )
-
-    if not success:
-        messages.error(
-            request, error_message or "An error occurred while processing your order."
-        )
-        return redirect("checkout:checkout")
-
-    # Create payment intent for Stripe
-    if order_data["payment_method"] == "stripe":
-        success, client_secret, error_message = CheckoutService.create_payment_intent(
-            order, payment_method="stripe"
-        )
-
-        if not success:
-            messages.error(
-                request,
-                error_message or "An error occurred with the payment processor.",
+        if cart_data["item_count"] == 0:
+            return Response(
+                {"error": "Cart is empty"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-            return redirect("checkout:checkout")
 
-        # Store the client secret in the session
-        request.session["payment_intent_client_secret"] = client_secret
-        request.session["order_id"] = order.id
+        # Get customer data from request
+        customer_email = request.data.get("email", "")
+        notes = request.data.get("notes", "")
 
-        # Redirect to payment page
-        return redirect("checkout:payment")
+        # Create payment intent for digital products
+        intent = stripe.PaymentIntent.create(
+            amount=int(cart_data["subtotal"] * 100),  # Convert to cents
+            currency="usd",
+            automatic_payment_methods={
+                "enabled": True,
+                "allow_redirects": "never",  # Disable redirect-based payment methods
+            },
+            metadata={
+                "cart_token": cart_data["cart_token"],
+                "item_count": cart_data["item_count"],
+                "is_digital_only": "true",
+                "customer_notes": notes[:500] if notes else "",  # Limit notes length
+            },
+            receipt_email=customer_email if customer_email else None,
+            description=f"Digital products order ({cart_data['item_count']} items)",
+        )
 
-    # For other payment methods
-    return redirect("checkout:confirmation", order_number=order.order_number)
+        logger.info(
+            f"Payment intent created: {intent.id} for cart {cart_data['cart_token']}"
+        )
+
+        return Response(
+            {
+                "client_secret": intent.client_secret,
+                "payment_intent_id": intent.id,
+            }
+        )
+
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error: {str(e)}")
+        return Response(
+            {"error": "Payment processing error. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    except Exception as e:
+        logger.error(f"Payment intent creation error: {str(e)}")
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
-def payment(request):
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def check_payment_status(request):
     """
-    Digital-only payment page.
+    Check payment status by payment intent ID.
+    Used for order confirmation page.
     """
-    # Check if we have a payment intent client secret in the session
-    client_secret = request.session.get("payment_intent_client_secret")
-    order_id = request.session.get("order_id")
+    payment_intent_id = request.GET.get("payment_intent")
 
-    if not client_secret or not order_id:
-        messages.error(request, "Payment session expired. Please try again.")
-        return redirect("checkout:checkout")
-
-    # Get the order
-    order = get_object_or_404(Order, id=order_id)
-
-    context = {
-        "order": order,
-        "client_secret": client_secret,
-        "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
-        "is_digital_only": True,
-    }
-
-    return render(request, "checkout/payment.html", context)
-
-
-@csrf_exempt
-def stripe_webhook(request):
-    """
-    Handle Stripe webhooks for digital product delivery.
-    """
-    payload = request.body
-    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+    if not payment_intent_id:
+        return Response(
+            {"error": "Payment intent ID required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-    except ValueError:
-        return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError:
-        return HttpResponse(status=400)
+        # Retrieve payment intent from Stripe
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
 
-    # Handle successful payment
-    if event["type"] == "payment_intent.succeeded":
-        payment_intent = event["data"]["object"]
-
-        # Find the order and mark as paid
+        # Check if order exists
+        order = None
         try:
-            order = Order.objects.get(stripe_payment_intent_id=payment_intent["id"])
-            order.payment_status = "paid"
-            order.status = "completed"  # Digital orders complete immediately
-            order.save()
-
-            # Clear the cart since order is complete
-            if order.cart_token:
-                CartService.clear_cart(order.cart_token)
-
-            # Send digital delivery email
-            OrderService.send_digital_delivery_email(order)
-
+            order = Order.objects.get(stripe_payment_intent_id=payment_intent_id)
+            order_data = OrderSerializer(order).data
         except Order.DoesNotExist:
-            pass
+            order_data = None
 
-    return HttpResponse(status=200)
+        return Response(
+            {
+                "payment_status": intent.status,
+                "payment_amount": intent.amount / 100,  # Convert from cents
+                "order": order_data,
+                "success": intent.status == "succeeded",
+            }
+        )
+
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error checking payment status: {str(e)}")
+        return Response(
+            {"error": "Unable to check payment status"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
-def confirmation(request, order_number):
+class OrderSettingsViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Digital-only order confirmation.
-    """
-    order = get_object_or_404(Order, order_number=order_number)
-
-    # Security check
-    if request.user.is_authenticated:
-        if order.user and order.user != request.user:
-            messages.error(request, "You do not have permission to view this order.")
-            return redirect("products:catalog")
-    else:
-        if request.session.get("order_id") != order.id:
-            messages.error(request, "You do not have permission to view this order.")
-            return redirect("products:catalog")
-
-    # Get digital download items
-    digital_items = order.items.filter(is_digital=True)
-
-    context = {
-        "order": order,
-        "items": order.items.all(),
-        "digital_items": digital_items,
-        "is_digital_only": True,
-    }
-
-    return render(request, "checkout/confirmation.html", context)
-
-
-@login_required
-def order_detail(request, order_number):
-    """
-    Digital-only order detail view.
-    """
-    order = get_object_or_404(Order, order_number=order_number, user=request.user)
-
-    # Get digital download items
-    digital_items = order.items.filter(is_digital=True)
-
-    context = {
-        "order": order,
-        "items": order.items.all(),
-        "digital_items": digital_items,
-        "is_digital_only": True,
-    }
-
-    return render(request, "checkout/order_detail.html", context)
-
-
-@login_required
-def order_list(request):
-    """
-    Digital-only order list view.
-    """
-    orders = Order.objects.filter(user=request.user).order_by("-created_at")
-
-    context = {
-        "orders": orders,
-    }
-
-    return render(request, "checkout/order_list.html", context)
-
-
-def digital_download(request, download_token):
-    """
-    Handle digital product downloads.
-    """
-    # Get the order item by download token
-    order_item = get_object_or_404(
-        OrderItem, download_token=download_token, is_digital=True
-    )
-
-    # Check if user has permission to download
-    if request.user.is_authenticated:
-        if order_item.order.user and order_item.order.user != request.user:
-            messages.error(request, "You do not have permission to download this file.")
-            return redirect("products:catalog")
-    else:
-        # For guest orders, you might want additional verification
-        pass
-
-    # Check if download is still valid
-    if not order_item.can_download:
-        messages.error(request, "This download is no longer available.")
-        return redirect("products:catalog")
-
-    # Serve the file
-    return OrderService.serve_digital_download(order_item)
-
-
-class OrderSettingsViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for order page settings.
+    ViewSet for order settings - read-only access for all users
     """
 
+    queryset = OrderSettings.objects.all()
     serializer_class = OrderSettingsSerializer
     permission_classes = [AllowAny]
 
-    def get_queryset(self):
-        return OrderSettings.objects.all()
+    def get_object(self):
+        """Always return the first (and only) OrderSettings instance"""
+        obj, created = OrderSettings.objects.get_or_create(pk=1)
+        return obj

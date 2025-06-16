@@ -1,16 +1,14 @@
-# cart/serializers.py - FIXED to return numbers not strings
+# cart/serializers.py
 from rest_framework import serializers
 from .models import Cart, CartItem
 from products.serializers import ProductSerializer, ProductVariantSerializer
-
-# cart/serializers.py - FINAL FIX: Convert ALL price fields to numbers
 
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     variant = ProductVariantSerializer(read_only=True)
-    unit_price = serializers.SerializerMethodField()  # FIXED
-    total_price = serializers.SerializerMethodField()  # FIXED
+    unit_price = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
     is_digital = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -48,7 +46,10 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
-    subtotal = serializers.SerializerMethodField()  # FIXED: Use SerializerMethodField
+    subtotal = serializers.SerializerMethodField()
+    tax = serializers.SerializerMethodField()
+    shipping = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
     total_items = serializers.IntegerField(read_only=True)
     token = serializers.CharField(read_only=True)
 
@@ -64,6 +65,9 @@ class CartSerializer(serializers.ModelSerializer):
             "id",
             "items",
             "subtotal",
+            "tax",
+            "shipping",
+            "total",
             "total_items",
             "created_at",
             "token",
@@ -83,8 +87,20 @@ class CartSerializer(serializers.ModelSerializer):
         ]
 
     def get_subtotal(self, obj):
-        """Return subtotal as a float, not string"""
+        """Return subtotal as a float"""
         return float(obj.subtotal)
+
+    def get_tax(self, obj):
+        """Return tax as a float"""
+        return float(obj.tax)
+
+    def get_shipping(self, obj):
+        """Return shipping as a float"""
+        return float(obj.shipping)
+
+    def get_total(self, obj):
+        """Return total as a float"""
+        return float(obj.total)
 
     def get_has_digital_items(self, obj):
         """Always True for digital-only system"""
