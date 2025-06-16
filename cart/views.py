@@ -6,8 +6,7 @@ from rest_framework.permissions import AllowAny
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
 from .utils import CartTokenManager
-from products.models import Product, ProductVariant
-from django.shortcuts import get_object_or_404
+from products.models import Product
 import logging
 
 logger = logging.getLogger(__name__)
@@ -65,6 +64,12 @@ class CartViewSet(viewsets.ViewSet):  # CHANGED: GenericViewSet → ViewSet
 
         return cart
 
+    def retrieve(self, request, pk=None):
+        """
+        Get cart by ID - this handles GET /api/v1/cart/{id}/
+        """
+        return self.list(request)
+
     def list(self, request):
         """
         Get the current cart.
@@ -76,6 +81,24 @@ class CartViewSet(viewsets.ViewSet):  # CHANGED: GenericViewSet → ViewSet
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        # Check if cart is empty and return early to avoid unnecessary queries
+        if cart.total_items == 0:
+            # Return minimal cart data for empty cart
+            return Response(
+                {
+                    "id": cart.id,
+                    "items": [],
+                    "subtotal": 0.0,
+                    "total_items": 0,
+                    "token": cart.token,
+                    "has_digital_items": False,
+                    "has_physical_items": False,
+                    "requires_shipping": False,
+                    "is_digital_only": False,
+                }
+            )
+
+        # Cart has items - proceed with full serialization
         serializer = CartSerializer(cart)
 
         # Add token to response
@@ -135,7 +158,6 @@ class CartItemViewSet(viewsets.ModelViewSet):
             )
 
         product_id = request.data.get("product")
-        variant_id = request.data.get("variant")
         quantity = request.data.get("quantity", 1)
 
         # Convert and validate product_id
@@ -150,53 +172,25 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
         # Validate product exists
         try:
-            product = get_object_or_404(Product, pk=product_id, is_active=True)
-        except Exception as e:
-            logger.error(f"Product not found: {product_id}, error: {e}")
+            product = Product.objects.get(pk=product_id, is_active=True)
+        except Product.DoesNotExist:
             return Response(
                 {"error": "Product not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Handle variant if provided
-        variant = None
-        if variant_id:
-            try:
-                variant_id = int(variant_id)
-                variant = get_object_or_404(
-                    ProductVariant, pk=variant_id, product=product, is_active=True
-                )
-            except (ValueError, TypeError):
-                return Response(
-                    {"error": "Invalid variant ID format"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            except Exception as e:
-                logger.error(f"Variant not found: {variant_id}, error: {e}")
-                return Response(
-                    {"error": "Variant not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-        # Digital products: no stock checking needed
         # Check if item already exists in cart
         try:
-            cart_item = CartItem.objects.get(
-                cart=cart, product=product, variant=variant
-            )
+            cart_item = CartItem.objects.get(cart=cart, product=product)
             # Update quantity
             cart_item.quantity += quantity
             cart_item.save()
         except CartItem.DoesNotExist:
-            # Create new item
+            # Create new item - FIXED: Remove unit_price and total_price as they are properties
             cart_item = CartItem.objects.create(
-                cart=cart, product=product, variant=variant, quantity=quantity
-            )
-        except Exception as e:
-            logger.error(f"Error updating cart item: {e}")
-            return Response(
-                {"error": "Failed to update cart"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                cart=cart,
+                product=product,
+                quantity=quantity,
             )
 
         serializer = self.get_serializer(cart_item)
