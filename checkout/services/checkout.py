@@ -1,4 +1,4 @@
-# checkout/services/checkout.py - Updated for JWT tokens and no address collection
+# checkout/services/checkout.py - Updated for mandatory user accounts
 from decimal import Decimal
 from django.conf import settings
 from cart.models import Cart
@@ -12,21 +12,26 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 class CheckoutService:
     """
     Service class for handling the checkout process.
+    All orders now require authenticated users - no guest checkout.
     """
 
     @staticmethod
     def create_order_from_cart(request, **kwargs):
         """
         Create a new order from the cart contents.
-        No address collection - Stripe handles addresses.
+        Requires authenticated user - no guest checkout allowed.
 
         Args:
-            request: The HTTP request
-            **kwargs: Order data including 'cart_token', 'email', 'shipping_method', etc.
+            request: The HTTP request with authenticated user
+            **kwargs: Order data including 'cart_token', 'shipping_method', etc.
 
         Returns:
             tuple: (success, order, error_message)
         """
+        # Ensure user is authenticated
+        if not request.user or not request.user.is_authenticated:
+            return False, None, "User authentication required to create an order."
+
         # Get cart using token
         cart_token = kwargs.get("cart_token")
         cart = None
@@ -38,8 +43,8 @@ class CheckoutService:
             if cart_id:
                 cart = Cart.objects.filter(id=cart_id, is_active=True).first()
 
-        # Fallback to user if authenticated and no cart found
-        if not cart and request.user.is_authenticated:
+        # Fallback to user cart if no cart found
+        if not cart:
             cart = Cart.objects.filter(user=request.user, is_active=True).first()
 
         if not cart:
@@ -75,20 +80,10 @@ class CheckoutService:
         # Calculate total
         total = subtotal + shipping_cost + tax_amount - discount_amount
 
-        # Determine customer email
-        customer_email = None
-        if request.user.is_authenticated:
-            customer_email = request.user.email
-        else:
-            customer_email = kwargs.get("email")
-
-        if not customer_email:
-            return False, None, "Customer email is required."
-
-        # Create order
+        # Create order with authenticated user
         order = Order.objects.create(
-            user=request.user if request.user.is_authenticated else None,
-            guest_email=customer_email if not request.user.is_authenticated else None,
+            user=request.user,  # Always use authenticated user
+            guest_email=None,  # No guest orders allowed
             shipping_method=shipping_method if not is_digital_only else None,
             subtotal=subtotal,
             shipping_cost=shipping_cost,
@@ -102,8 +97,7 @@ class CheckoutService:
             # Digital order fields
             has_digital_items=cart.has_digital_items,
             has_physical_items=cart.has_physical_items,
-            digital_delivery_email=kwargs.get("digital_delivery_email")
-            or customer_email,
+            digital_delivery_email=request.user.email,  # Always use user's email
         )
 
         # Create order items
@@ -166,6 +160,7 @@ class CheckoutService:
                     "metadata": {
                         "order_id": str(order.id),
                         "order_number": order.order_number,
+                        "user_id": str(order.user.id),
                         "has_digital_items": str(order.has_digital_items),
                         "has_physical_items": str(order.has_physical_items),
                     },

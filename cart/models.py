@@ -43,17 +43,20 @@ class Cart(TimestampedModel):
     @property
     def subtotal(self):
         """
-        Calculate cart subtotal.
+        Calculate cart subtotal with proper handling for empty carts and Decimal values.
         """
         from decimal import Decimal
 
-        return sum(item.total_price for item in self.items.all()) or Decimal("0.00")
+        total = Decimal("0.00")
+        for item in self.items.all():
+            if item.total_price:
+                total += Decimal(str(item.total_price))
+        return total
 
     @property
     def tax(self):
         """
-        Calculate tax amount. For digital products, this is typically 0.
-        Can be overridden later for physical products or specific tax rules.
+        Calculate tax amount. Returns 0.0 for digital products.
         """
         from decimal import Decimal
 
@@ -62,7 +65,7 @@ class Cart(TimestampedModel):
     @property
     def shipping(self):
         """
-        Calculate shipping cost. For digital products, this is always 0.
+        Calculate shipping cost. Returns 0.0 for digital products.
         """
         from decimal import Decimal
 
@@ -72,7 +75,7 @@ class Cart(TimestampedModel):
     def total(self):
         """
         Calculate total amount (subtotal + tax + shipping).
-        For digital-only products, this equals subtotal.
+        For digital products, this equals subtotal since tax and shipping are 0.
         """
         return self.subtotal + self.tax + self.shipping
 

@@ -1,4 +1,4 @@
-# api/urls.py - Updated for simplified cart system
+# api/urls.py - Updated for checkout with account registration
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from accounts.views import WishlistViewSet
@@ -6,7 +6,7 @@ from blog.views import BlogPostViewSet
 from linkhub.views import LinkHubViewSet
 from pages.views import PageViewSet, TestimonialViewSet
 from accounts import api_views as auth_views
-from checkout.views import OrderSettingsViewSet
+from checkout.views import check_payment_status, OrderSettingsViewSet
 from cart.views import CartViewSet, CartItemViewSet
 from appointments.views import (
     CalendarUserViewSet,
@@ -22,9 +22,8 @@ from courses.views import (
     EnrollmentViewSet,
     CourseSettingsViewSet,
 )
-from checkout.views import create_payment_intent, check_payment_status
-from checkout.webhooks import stripe_webhook
 
+from checkout.webhooks import stripe_webhook
 from . import views
 
 # Import appointment views for public endpoints
@@ -75,16 +74,17 @@ router.register(
 )
 router.register(r"courses", CourseViewSet, basename="course")
 router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")
-router.register(r"courses-settings", CourseSettingsViewSet, basename="courses-settings")
+router.register(r"course-settings", CourseSettingsViewSet, basename="course-settings")
 
 urlpatterns = [
     path("", include(router.urls)),
-    # ============================================================
-    # AUTHENTICATION ENDPOINTS - Secure user management
-    # ============================================================
+    # Authentication endpoints
     path("auth/register/", auth_views.register, name="auth-register"),
     path("auth/login/", auth_views.login, name="auth-login"),
     path("auth/logout/", auth_views.logout, name="auth-logout"),
+    path(
+        "auth/verify-email/<str:token>/", auth_views.verify_email, name="verify-email"
+    ),
     path(
         "auth/resend-verification/",
         auth_views.resend_verification,
@@ -92,38 +92,28 @@ urlpatterns = [
     ),
     path("auth/profile/", auth_views.user_profile, name="user-profile"),
     path("auth/change-password/", auth_views.change_password, name="change-password"),
-    # ============================================================
-    # DIGITAL-ONLY ECOMMERCE ENDPOINTS
-    # ============================================================
+    # Checkout endpoints
+    path("check-email/", views.check_email, name="check-email"),
     path(
         "create-payment-intent/",
         views.create_payment_intent,
         name="create-payment-intent",
     ),
     path("create-order/", views.create_order, name="create-order"),
-    path("create-payment-intent/", create_payment_intent, name="create-payment-intent"),
     path("check-payment-status/", check_payment_status, name="check-payment-status"),
     path("stripe/webhook/", stripe_webhook, name="stripe-webhook"),
-    # ============================================================
-    # UTILITY ENDPOINTS
-    # ============================================================
-    path("", include("core.urls")),
+    # Placeholder image
     path(
         "placeholder/<int:width>/<int:height>/",
         views.placeholder_image,
         name="placeholder-image",
     ),
-    # ============================================================
-    # CUSTOMER APPOINTMENTS
-    # ============================================================
-    path(
-        "my-appointments/",
-        appointments_views.get_my_appointments,
-        name="my-appointments",
-    ),
+    # Core includes
+    path("", include("core.urls")),
     # ============================================================
     # APPOINTMENTS PUBLIC API - SINGLE USER SYSTEM (NO USERNAME)
     # ============================================================
+    # RESTORED: Original calendar endpoints exactly as frontend expects
     path(
         "calendar/info/",
         appointments_views.get_calendar_info,
@@ -132,14 +122,31 @@ urlpatterns = [
     path(
         "calendar/slots/",
         appointments_views.get_available_slots,
-        name="available-slots",
+        name="calendar-slots",
     ),
     path(
         "calendar/book/",
         appointments_views.book_appointment,
-        name="book-appointment",
+        name="calendar-book",
+    ),
+    # RESTORED: Customer appointments endpoint
+    path(
+        "my-appointments/",
+        appointments_views.get_my_appointments,
+        name="my-appointments",
     ),
     # Customer appointment management (requires email verification)
+    # This handles the ?id=X format from emails
+    path(
+        "calendar/appointment/",
+        appointments_views.get_customer_appointment_query,
+        name="customer-appointment-query",
+    ),
+    path(
+        "calendar/appointment/<int:appointment_id>",
+        appointments_views.get_customer_appointment,
+        name="customer-appointment-detail",
+    ),
     path(
         "calendar/appointment/<int:appointment_id>/",
         appointments_views.get_customer_appointment,
@@ -159,5 +166,21 @@ urlpatterns = [
         "calendar/appointment/<int:appointment_id>/available-slots/",
         appointments_views.get_available_slots_for_reschedule,
         name="reschedule-slots",
+    ),
+    # COURSES PUBLIC API (LMS functionality)
+    path(
+        "courses/featured/",
+        CourseViewSet.as_view({"get": "featured"}),
+        name="featured-courses",
+    ),
+    path(
+        "courses/<slug:slug>/",
+        CourseViewSet.as_view({"get": "retrieve"}),
+        name="course-detail",
+    ),
+    path(
+        "courses/<slug:slug>/enroll/",
+        EnrollmentViewSet.as_view({"post": "enroll"}),
+        name="course-enroll",
     ),
 ]

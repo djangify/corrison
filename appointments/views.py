@@ -858,3 +858,27 @@ def get_my_appointments(request):
             {"error": f"Failed to load appointments: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_customer_appointment_query(request):
+    """
+    Get appointment details using query parameter format (?id=X&email=Y)
+    This handles the email link format
+    """
+    appointment_id = request.query_params.get("id")
+    email = request.query_params.get("email")
+
+    if not appointment_id:
+        return Response(
+            {"error": "Appointment ID is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if not email:
+        return Response(
+            {"error": "Email parameter is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Call the existing function that handles the actual logic
+    return get_customer_appointment(request, appointment_id)

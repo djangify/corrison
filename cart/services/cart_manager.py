@@ -19,6 +19,8 @@ class CartService:
 
         return Cart.objects.filter(token=cart_token, is_active=True).first()
 
+    # Update the get_cart_data method in cart/services/cart_manager.py
+
     @staticmethod
     def get_cart_data(request, cart_token=None):
         """
@@ -55,10 +57,13 @@ class CartService:
         # Get cart items
         items = cart.items.select_related("product", "variant").all()
 
+        # Calculate subtotal safely
+        subtotal = cart.subtotal if cart.subtotal is not None else 0.0
+
         return {
             "cart": cart,
             "items": items,
-            "subtotal": cart.subtotal,
+            "subtotal": float(subtotal),  # Ensure it's a float
             "item_count": cart.total_items,
             "cart_token": cart.token,
             # Digital-only flags (always true for digital)

@@ -18,41 +18,6 @@ ALLOWED_HOSTS = [
 
 # Database in base.py is already set up to use environment variables
 
-# CORS Configuration
-# Since you're using AllowedOrigin model, we need to ensure CORS middleware can access it
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = []  # Empty because we're using the signal-based approach with AllowedOrigin model
-CORS_ALLOW_ALL_ORIGINS = True  # before changing this back to false create a new ecommerce store that is not on the signal list and see if you can connect
-
-# Headers that should be exposed
-CORS_EXPOSE_HEADERS = [
-    "Content-Type",
-    "X-CSRFToken",
-    "Set-Cookie",
-]
-
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://corrison.corrisonapi.com",
-    "https://ecommerce.corrisonapi.com",
-    "https://corrisonapi.com",
-]
-
-
-# CSRF Configuration
-CSRF_TRUSTED_ORIGINS = [
-    "https://corrison.corrisonapi.com",
-    "https://corrisonapi.com",
-    "https://ecommerce.corrisonapi.com",
-    "https://65.108.89.200",
-    "http://localhost",
-    "http://127.0.0.1",
-]
-
-# CSRF Cookie Configuration
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = "None"  # Required for cross-site requests
-CSRF_COOKIE_HTTPONLY = False  # Frontend needs to read this
 
 # Session Configuration
 SESSION_ENGINE = "django.contrib.sessions.backends.db"

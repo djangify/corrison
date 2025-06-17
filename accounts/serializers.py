@@ -5,14 +5,57 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from .models import WishlistItem, Profile
 from products.serializers import ProductSerializer
+from products.models import Product
 
 
 class WishlistItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
+    product_id = serializers.UUIDField(write_only=True, required=False)
 
     class Meta:
         model = WishlistItem
-        fields = ["id", "user", "product", "created_at"]
+        fields = ["id", "user", "product", "product_id", "created_at"]
+        read_only_fields = ["user", "created_at"]
+
+    def create(self, validated_data):
+        # Get the product_id from validated data
+        product_id = validated_data.pop("product_id", None)
+
+        # If product_id is provided in the data, use it
+        if not product_id and "product" in self.initial_data:
+            product_id = self.initial_data["product"]
+
+        if not product_id:
+            raise serializers.ValidationError("Product ID is required")
+
+        # Get the product
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            raise serializers.ValidationError("Product not found or not active")
+
+        # Get the user from the request context
+        user = self.context["request"].user
+
+        # Check if item already exists in wishlist
+        if WishlistItem.objects.filter(user=user, product=product).exists():
+            raise serializers.ValidationError("Product already in wishlist")
+
+        # Create the wishlist item
+        return WishlistItem.objects.create(user=user, product=product)
+
+
+class WishlistItemCreateSerializer(serializers.Serializer):
+    """Simplified serializer for creating wishlist items"""
+
+    product = serializers.UUIDField()
+
+    def validate_product(self, value):
+        try:
+            Product.objects.get(id=value, is_active=True)
+        except Product.DoesNotExist:
+            raise serializers.ValidationError("Product not found or not active")
+        return value
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

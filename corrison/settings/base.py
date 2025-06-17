@@ -13,9 +13,6 @@ env.read_env(os.path.join(BASE_DIR, ".env"))
 # SECRET_KEY
 SECRET_KEY = env("SECRET_KEY")
 
-# Allow credentials (cookies, authorization headers)
-CORS_ALLOW_CREDENTIALS = True
-
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -55,6 +52,47 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "corrison.urls"
+
+# CORS Configuration
+# Since you're using AllowedOrigin model, we need to ensure CORS middleware can access it
+CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOWED_ORIGINS = []  # Empty because we're using the signal-based approach with AllowedOrigin model in django admin area
+CORS_ALLOW_ALL_ORIGINS = True  # before changing this back to false create a new ecommerce store that is not on the signal list and see if you can connect
+
+# Headers that should be exposed
+CORS_EXPOSE_HEADERS = [
+    "Content-Type",
+    "X-CSRFToken",
+    "Set-Cookie",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = [
+    "https://corrison.corrisonapi.com",
+    "https://corrisonapi.com",
+    "https://ecommerce.corrisonapi.com",
+    "https://65.108.89.200",
+    "http://localhost",
+    "http://127.0.0.1",
+]
+
+# CSRF Cookie Configuration
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "None"  # Required for cross-site requests
+CSRF_COOKIE_HTTPONLY = False  # Frontend needs to read this
+
 
 TEMPLATES = [
     {
