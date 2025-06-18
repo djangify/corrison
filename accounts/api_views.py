@@ -8,11 +8,10 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 from django.conf import settings
-
+from django.contrib.auth import authenticate, login as django_login
 from .models import Profile
 from .serializers import (
     UserRegistrationSerializer,
-    UserLoginSerializer,
     EmailVerificationSerializer,
     ResendVerificationSerializer,
     ChangePasswordSerializer,
@@ -56,31 +55,72 @@ def register(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login(request):
-    """Login user and return JWT tokens"""
-    serializer = UserLoginSerializer(data=request.data)
+    """
+    Login endpoint that accepts either username or email.
+    Returns JWT tokens for authentication.
+    """
+    # Get the username/email and password from request
+    username_or_email = request.data.get("username", "").strip()
+    password = request.data.get("password", "")
 
-    if serializer.is_valid():
-        user = serializer.validated_data["user"]
+    # Check if username field might actually be an email
+    if not username_or_email:
+        # Try getting from 'email' field as well
+        username_or_email = request.data.get("email", "").strip()
 
-        # Check if email is verified (optional - you can remove this check)
-        if not user.profile.email_verified:
-            return Response(
-                {"error": "Please verify your email address before logging in."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    if not username_or_email or not password:
+        return Response(
+            {"non_field_errors": ["Username/email and password are required."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Try to get the user by username or email
+    user = None
+
+    # Check if it looks like an email
+    if "@" in username_or_email:
+        # Try to find user by email
+        try:
+            user_obj = User.objects.get(email__iexact=username_or_email)
+            user = authenticate(request, username=user_obj.username, password=password)
+        except User.DoesNotExist:
+            pass
+    else:
+        # Try standard username authentication
+        user = authenticate(request, username=username_or_email, password=password)
+
+    if user is not None:
+        django_login(request, user)
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
 
+        # Get user profile data
+        profile = hasattr(user, "profile") and user.profile
+
+        # Return user data with JWT tokens
         return Response(
             {
+                "success": True,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email_verified": profile.email_verified if profile else False,
+                    "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
+                },
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
-                "user": UserSerializer(user).data,
             }
         )
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(
+            {"non_field_errors": ["Unable to log in with provided credentials."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @api_view(["POST"])
@@ -149,27 +189,46 @@ def verify_email(request, token):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def resend_verification(request):
-    """Resend verification email"""
-    serializer = ResendVerificationSerializer(data=request.data)
+    """Resend verification email - works for both authenticated and unauthenticated users"""
 
-    if serializer.is_valid():
-        email = serializer.validated_data["email"]
-        user = User.objects.get(email=email)
+    # If user is authenticated, use their email
+    if request.user.is_authenticated:
+        user = request.user
 
-        # Generate new verification token
-        token = user.profile.generate_verification_token()
-
-        # Send verification email
-        try:
-            send_verification_email(user, token)
-            return Response({"message": "Verification email sent successfully."})
-        except Exception as e:
+        # Check if already verified
+        if hasattr(user, "profile") and user.profile.email_verified:
             return Response(
-                {"error": "Failed to send verification email. Please try again later."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"error": "Email is already verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    else:
+        # For unauthenticated users, require email in request
+        serializer = ResendVerificationSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data["email"]
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "No user found with this email address."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # Generate new verification token
+    token = user.profile.generate_verification_token()
+
+    # Send verification email
+    try:
+        send_verification_email(user, token)
+        return Response({"message": "Verification email sent successfully."})
+    except Exception as e:
+        return Response(
+            {"error": "Failed to send verification email. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["GET", "PUT"])
@@ -177,8 +236,33 @@ def resend_verification(request):
 def user_profile(request):
     """Get or update user profile"""
     if request.method == "GET":
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
+        # Get user profile data
+        user = request.user
+        profile = hasattr(user, "profile") and user.profile
+
+        # Build response data manually to ensure email_verified is included
+        user_data = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email_verified": profile.email_verified if profile else False,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+        }
+
+        # Add profile data if it exists
+        if profile:
+            user_data["profile"] = {
+                "phone": profile.phone,
+                "birth_date": profile.birth_date,
+                "email_marketing": profile.email_marketing,
+                "receive_order_updates": profile.receive_order_updates,
+                "email_verified": profile.email_verified,
+            }
+
+        return Response(user_data)
 
     elif request.method == "PUT":
         serializer = ProfileUpdateSerializer(
@@ -187,10 +271,26 @@ def user_profile(request):
 
         if serializer.is_valid():
             serializer.save()
+
+            # Return updated user data with email_verified
+            user = request.user
+            profile = user.profile
+
+            user_data = {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email_verified": profile.email_verified,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+            }
+
             return Response(
                 {
                     "message": "Profile updated successfully.",
-                    "user": UserSerializer(request.user).data,
+                    "user": user_data,
                 }
             )
 
