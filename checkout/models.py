@@ -6,6 +6,7 @@ from django.utils.crypto import get_random_string
 from datetime import timedelta
 from core.models import TimestampedModel
 from products.models import Product, ProductVariant
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -274,7 +275,9 @@ class OrderItem(TimestampedModel):
         """
         Calculate the total price for this item.
         """
-        return self.price * self.quantity
+        if self.price is not None and self.quantity is not None:
+            return self.price * self.quantity
+        return Decimal("0.00")
 
     @property
     def can_download(self):
@@ -360,15 +363,17 @@ class OrderItem(TimestampedModel):
         Override save to handle digital product setup.
         """
         # Set product info if not already set
-        if not self.product_name:
-            self.product_name = self.product.name
-        if not self.sku and hasattr(self.product, "sku"):
-            self.sku = self.product.sku
+        if self.product:
+            if not self.product_name:
+                self.product_name = self.product.name
+            if not self.sku and hasattr(self.product, "sku"):
+                self.sku = self.product.sku
+
+            # Set is_digital based on product type
+            self.is_digital = self.product.is_digital
+
         if self.variant and not self.variant_name:
             self.variant_name = self.variant.name
-
-        # Set is_digital based on product type
-        self.is_digital = self.product.is_digital
 
         super().save(*args, **kwargs)
 

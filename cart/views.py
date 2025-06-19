@@ -31,13 +31,34 @@ class CartViewSet(viewsets.ViewSet):
 
         with transaction.atomic():
             # Get or create cart for this session
-            cart, created = Cart.objects.get_or_create(
-                session_key=session_key,
-                is_active=True,
-                defaults={
-                    "user": request.user if request.user.is_authenticated else None
-                },
-            )
+            try:
+                # First try to get active cart
+                cart = Cart.objects.get(session_key=session_key, is_active=True)
+            except Cart.DoesNotExist:
+                # Create new cart
+                cart = Cart.objects.create(
+                    session_key=session_key,
+                    is_active=True,
+                    user=request.user if request.user.is_authenticated else None,
+                )
+            except Cart.MultipleObjectsReturned:
+                # Multiple carts found - get the one with items or the most recent
+                carts = Cart.objects.filter(
+                    session_key=session_key, is_active=True
+                ).order_by("-created_at")
+
+                # Prefer cart with items
+                for c in carts:
+                    if c.items.exists():
+                        cart = c
+                        # Deactivate other carts
+                        carts.exclude(id=c.id).update(is_active=False)
+                        break
+                else:
+                    # No cart with items, use most recent
+                    cart = carts.first()
+                    # Deactivate other carts
+                    carts.exclude(id=cart.id).update(is_active=False)
 
             # If user is authenticated and cart has no user, assign it
             if request.user.is_authenticated and not cart.user:
