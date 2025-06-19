@@ -149,11 +149,8 @@ def create_payment_intent(request):
         from accounts.utils import send_verification_email
         from django.db import transaction
 
-        # Get cart data
-        cart_token = request.data.get("cart_token") or request.headers.get(
-            "Authorization", ""
-        ).replace("Bearer ", "")
-        cart_data = CartService.get_cart_data(request, cart_token)
+        # Get cart data - just use session-based cart
+        cart_data = CartService.get_cart_data(request)
 
         if cart_data["item_count"] == 0:
             return Response(
