@@ -59,7 +59,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ("price", "sale_price", "is_featured", "is_active")
     inlines = [ProductImageInline, ProductVariantInline]
     fieldsets = (
-        (None, {"fields": ("name", "slug", "category", "description")}),
+        (None, {"fields": ("name", "slug", "category", "product_type", "description")}),
         ("Pricing", {"fields": ("price", "sale_price")}),
         (
             "Digital Download Settings",
@@ -108,9 +108,8 @@ class ProductAdmin(admin.ModelAdmin):
         return tuple(filters)
 
     def save_model(self, request, obj, form, change):
-        """Auto-set digital product defaults"""
-        # Force product_type to digital for new products
-        if not change:  # New product
+        "Only set product_type to digital if not already set"
+        if not change and not obj.product_type:
             obj.product_type = "digital"
             obj.requires_shipping = False
             obj.in_stock = True  # Digital products are always "in stock"

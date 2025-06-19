@@ -87,7 +87,7 @@
         }
         
         .cta-button:hover {
-            background-color: #115e59;
+            background-color: #f8fafc;
         }
         
         .alternative-link {
@@ -175,7 +175,7 @@
         <!-- Header -->
         <div class="email-header">
             <div class="logo">
-                <div class="logo-icon">C</div>
+                
                 <h1 class="logo-text">{{ site_name }}</h1>
             </div>
         </div>
@@ -216,26 +216,26 @@
             </p>
             <ul style="color: #4b5563; margin-left: 20px;">
                 <li>Access your personal dashboard</li>
-                <li>Enroll in courses and track your progress</li>
                 <li>Save products to your wishlist</li>
                 <li>Book appointments and consultations</li>
                 <li>Receive important updates and notifications</li>
             </ul>
             
             <p class="message">
-                If you have any questions, feel free to contact our support team.
+                If you have any questions, feel free to contact our support team @ hello@corrisonapi.com
             </p>
             
             <p class="message">
                 Welcome aboard!<br>
                 The {{ site_name }} Team
+                www.corrisonapi.com
             </p>
         </div>
         
         <!-- Footer -->
         <div class="email-footer">
             <p class="footer-text">
-                This email was sent to {{ user.email }}
+                This email was sent to {{ user.username }} at {{ user.email }}
             </p>
             <p class="footer-text">
                 {{ site_name }} • Empowering learning and growth

@@ -99,7 +99,7 @@
         
         .cta-button {
             display: inline-block;
-            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+            background: #f8fafc;
             color: #ffffff;
             text-decoration: none;
             padding: 16px 32px;
@@ -284,7 +284,7 @@
         <!-- Header -->
         <div class="email-header">
             <div class="logo">
-                <div class="logo-icon">C</div>
+                
                 <h1 class="logo-text">{{ site_name }}</h1>
             </div>
             <div class="welcome-badge">✨ Account Verified ✨</div>
@@ -317,46 +317,35 @@
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">📚</div>
-                    <div class="feature-title">Learn & Grow</div>
-                    <div class="feature-description">Access premium courses and track your learning progress</div>
+                    <div class="feature-title">Take A Look</div>
+                    <div class="feature-description">Access the site and see what is available.</div>
                 </div>
                 
                 <div class="feature-card">
                     <div class="feature-icon">📅</div>
-                    <div class="feature-title">Book Sessions</div>
-                    <div class="feature-description">Schedule one-on-one consultations and appointments</div>
+                    <div class="feature-title">Book A Session</div>
+                    <div class="feature-description">Schedule a one-on-one appointment</div>
                 </div>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">💎</div>
-                    <div class="feature-title">Premium Content</div>
-                    <div class="feature-description">Unlock exclusive resources and materials</div>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <div class="feature-title">Track Progress</div>
-                    <div class="feature-description">Monitor your achievements and milestones</div>
-                </div>
             </div>
             
             <!-- Stats Section -->
             <div class="stats-section">
-                <h3 style="margin: 0 0 10px 0; color: #1f2937;">Join Our Growing Community</h3>
-                <p style="margin: 0; color: #6b7280; font-size: 14px;">You're part of something amazing</p>
+                <h3 style="margin: 0 0 10px 0; color: #1f2937;">Get Corrison For Your Business</h3>
+                <p style="margin: 0; color: #6b7280; font-size: 14px;">Be part of something amazing</p>
                 
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <span class="stat-number">10K+</span>
-                        <span class="stat-label">Active Learners</span>
+                        <span class="stat-number">Showcase Your Work</span>
+                        <span class="stat-label">Everything in one place.</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">500+</span>
-                        <span class="stat-label">Courses Available</span>
+                        <span class="stat-number">Sell Your Knowledge</span>
+                        <span class="stat-label">Save on monthly fees</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">95%</span>
-                        <span class="stat-label">Success Rate</span>
+                        <span class="stat-number">You Own It</span>
+                        <span class="stat-label">100% owned by your business</span>
                     </div>
                 </div>
             </div>
@@ -366,9 +355,9 @@
             </p>
             <ul style="color: #4b5563; margin-left: 20px;">
                 <li><strong>Complete your profile</strong> - Add your interests and goals</li>
-                <li><strong>Explore our courses</strong> - Find content that matches your needs</li>
-                <li><strong>Join the community</strong> - Connect with fellow learners</li>
-                <li><strong>Set your learning goals</strong> - Create a personalized learning path</li>
+                <li><strong>Explore the VLE</strong> - Looking to get your own virtual learning environment?</li>
+                <li><strong>Book An Appointment</strong> - Learn how Corrison API works</li>
+                <li><strong>Arrange a Demo</strong> - Let us walk you through everything here.</li>
             </ul>
             
             <p class="message">
@@ -379,13 +368,14 @@
             <p class="message">
                 Here's to your success! 🚀<br>
                 The {{ site_name }} Team
+                corrisonapi.com
             </p>
         </div>
         
         <!-- Footer -->
         <div class="email-footer">
             <p class="footer-text">
-                This email was sent to {{ user.email }}
+                This email was sent to {{ user.username }} at {{ user.email }}
             </p>
             <p class="footer-text">
                 {{ site_name }} • Empowering your learning journey

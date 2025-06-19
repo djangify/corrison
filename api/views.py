@@ -14,7 +14,6 @@ from django.http import HttpResponse
 from rest_framework.decorators import (
     api_view,
     permission_classes,
-    authentication_classes,
 )
 from products.models import Product, Category
 from checkout.models import Order, Payment
@@ -139,7 +138,6 @@ def check_email(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@authentication_classes([])
 def create_payment_intent(request):
     """
     Handle Stripe payment intent creation for digital products.
@@ -152,6 +150,56 @@ def create_payment_intent(request):
         from accounts.models import Profile
         from accounts.utils import send_verification_email
         from django.db import transaction
+
+        # Check if user is authenticated via Django session FIRST
+        if request.user and request.user.is_authenticated:
+            print(f"Session authenticated user detected: {request.user.email}")
+
+            # Use the authenticated user's information
+            user = request.user
+            email = user.email
+            first_name = user.first_name
+            last_name = user.last_name
+
+            # Get cart data
+            cart_data = CartService.get_cart_data(request)
+
+            if cart_data["item_count"] == 0:
+                return Response(
+                    {"error": "Cart is empty"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Set Stripe API key
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+
+            # Create payment intent metadata for authenticated user
+            metadata = {
+                "cart_token": cart_data["cart_token"],
+                "item_count": cart_data["item_count"],
+                "is_digital_only": "true",
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "user_id": str(user.id),
+                "authenticated_user": "true",
+            }
+
+            # Create payment intent
+            intent = stripe.PaymentIntent.create(
+                amount=int(cart_data["subtotal"] * 100),  # Convert to cents
+                currency="usd",
+                metadata=metadata,
+            )
+
+            return Response(
+                {
+                    "client_secret": intent.client_secret,
+                    "payment_intent_id": intent.id,
+                    "authenticated": True,
+                    "email": email,
+                }
+            )
 
         # Get cart data - just use session-based cart
         cart_data = CartService.get_cart_data(request)
@@ -182,46 +230,51 @@ def create_payment_intent(request):
         existing_user = User.objects.filter(email=email).first()
 
         if existing_user:
-            # User exists - they should log in
-            return Response(
-                {
-                    "error": "An account already exists with this email. Please log in to complete your purchase."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Create new user if password provided
-        user = None
-        if password:
-            with transaction.atomic():
-                # Create username from email
-                username = email.split("@")[0]
-                base_username = username
-                counter = 1
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{counter}"
-                    counter += 1
-
-                # Create user
-                user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
+            # NEW: Check if this is the currently logged-in user
+            if request.user.is_authenticated and request.user.email == email:
+                # Use the authenticated user's account
+                user = request.user
+            else:
+                # User exists but not logged in - they should log in
+                return Response(
+                    {
+                        "error": "An account already exists with this email. Please log in to complete your purchase."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
+        else:
+            # Create new user if password provided
+            user = None
+            if password:
+                with transaction.atomic():
+                    # Create username from email
+                    username = email.split("@")[0]
+                    base_username = username
+                    counter = 1
+                    while User.objects.filter(username=username).exists():
+                        username = f"{base_username}{counter}"
+                        counter += 1
 
-                # Create profile (should be created by signal, but ensure it exists)
-                profile, created = Profile.objects.get_or_create(user=user)
+                    # Create user
+                    user = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        password=password,
+                        first_name=first_name,
+                        last_name=last_name,
+                    )
 
-                # Generate verification token
-                token = profile.generate_verification_token()
+                    # Create profile (should be created by signal, but ensure it exists)
+                    profile, created = Profile.objects.get_or_create(user=user)
 
-                # Send verification email
-                try:
-                    send_verification_email(user, token)
-                except Exception as e:
-                    print(f"Failed to send verification email: {e}")
+                    # Generate verification token
+                    token = profile.generate_verification_token()
+
+                    # Send verification email
+                    try:
+                        send_verification_email(user, token)
+                    except Exception as e:
+                        print(f"Failed to send verification email: {e}")
 
         # Set Stripe API key
         stripe.api_key = settings.STRIPE_SECRET_KEY
