@@ -1,152 +1,104 @@
 # cart/models.py
 from django.db import models
 from django.contrib.auth import get_user_model
+from decimal import Decimal
 from core.models import TimestampedModel
 from products.models import Product, ProductVariant
 
 User = get_user_model()
 
 
-class Cart(TimestampedModel):
+class Cart(models.Model):
     """
-    Shopping cart model.
+    Shopping cart model for digital products.
+    Uses Django sessions for identification.
     """
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="carts", null=True, blank=True
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="carts"
     )
-    session_key = models.CharField(max_length=255, null=True, blank=True)
-    token = models.CharField(
-        max_length=500, null=True, blank=True, db_index=True
-    )  # JWT token
+    session_key = models.CharField(max_length=40, null=True, blank=True, db_index=True)
     is_active = models.BooleanField(default=True)
-
-    # Digital order support
-    has_digital_items = models.BooleanField(default=False)
-    has_physical_items = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Cart"
-        verbose_name_plural = "Carts"
         indexes = [
-            models.Index(fields=["user"]),
-            models.Index(fields=["session_key"]),
-            models.Index(fields=["token"]),
-            models.Index(fields=["is_active"]),
+            models.Index(fields=["session_key", "is_active"]),
+            models.Index(fields=["user", "is_active"]),
         ]
+        ordering = ["-created_at"]
 
     def __str__(self):
         if self.user:
             return f"Cart for {self.user.email}"
-        return f"Cart {self.id}"
+        return f"Cart {self.id} (Session: {self.session_key[:8]}...)"
 
     @property
     def subtotal(self):
-        """
-        Calculate cart subtotal with proper handling for empty carts and Decimal values.
-        """
-        from decimal import Decimal
-
+        """Calculate cart subtotal."""
         total = Decimal("0.00")
         for item in self.items.all():
-            if item.total_price:
-                total += Decimal(str(item.total_price))
+            total += Decimal(str(item.total_price))
         return total
 
     @property
     def tax(self):
-        """
-        Calculate tax amount. Returns 0.0 for digital products.
-        """
-        from decimal import Decimal
-
+        """Tax calculation - returns 0 for digital products."""
         return Decimal("0.00")
 
     @property
     def shipping(self):
-        """
-        Calculate shipping cost. Returns 0.0 for digital products.
-        """
-        from decimal import Decimal
-
+        """Shipping cost - returns 0 for digital products."""
         return Decimal("0.00")
 
     @property
     def total(self):
-        """
-        Calculate total amount (subtotal + tax + shipping).
-        For digital products, this equals subtotal since tax and shipping are 0.
-        """
-        return self.subtotal + self.tax + self.shipping
+        """Calculate total amount (for digital products, equals subtotal)."""
+        return self.subtotal
 
     @property
     def total_items(self):
-        """
-        Get total number of items in cart.
-        """
+        """Get total number of items in cart."""
         return self.items.count()
 
     @property
-    def requires_shipping(self):
-        """
-        Returns True if cart contains physical items that need shipping.
-        """
-        return self.has_physical_items
-
-    @property
-    def is_digital_only(self):
-        """
-        Returns True if cart contains only digital items.
-        """
-        return self.has_digital_items and not self.has_physical_items
-
-    def update_item_types(self):
-        """
-        Update has_digital_items and has_physical_items based on cart contents.
-        """
-        items = self.items.select_related("product").all()
-
-        self.has_digital_items = any(item.product.is_digital for item in items)
-        self.has_physical_items = any(not item.product.is_digital for item in items)
-
-        self.save(update_fields=["has_digital_items", "has_physical_items"])
+    def total_quantity(self):
+        """Get total quantity of all items."""
+        return sum(item.quantity for item in self.items.all())
 
     def clear(self):
-        """
-        Clear all items from the cart.
-        """
+        """Clear all items from the cart."""
         self.items.all().delete()
-        self.has_digital_items = False
-        self.has_physical_items = False
-        self.save(update_fields=["has_digital_items", "has_physical_items"])
 
-    @classmethod
-    def get_or_create_cart(cls, user=None, token=None):
+    def merge_with(self, other_cart):
         """
-        Get or create a cart based on user or token
+        Merge another cart into this one.
+        Used when anonymous user logs in.
         """
-        cart = None
+        if not other_cart or other_cart.id == self.id:
+            return
 
-        if user and user.is_authenticated:
-            # Try to get user's active cart
-            cart = cls.objects.filter(user=user, is_active=True).first()
-        elif token:
-            # Try to get cart by token
-            cart = cls.objects.filter(token=token, is_active=True).first()
+        for item in other_cart.items.all():
+            try:
+                # Check if product already exists in this cart
+                existing_item = self.items.get(
+                    product=item.product, variant=item.variant
+                )
+                existing_item.quantity += item.quantity
+                existing_item.save()
+            except CartItem.DoesNotExist:
+                # Move item to this cart
+                item.cart = self
+                item.save()
 
-        # Create new cart if needed
-        if not cart:
-            cart = cls.objects.create(
-                user=user if user and user.is_authenticated else None, token=token
-            )
-
-        return cart
+        # Deactivate the other cart
+        other_cart.is_active = False
+        other_cart.save()
 
 
 class CartItem(TimestampedModel):
-    """
-    Shopping cart item model.
-    """
+    """Shopping cart item model for digital products."""
 
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -160,8 +112,7 @@ class CartItem(TimestampedModel):
         verbose_name_plural = "Cart Items"
         unique_together = ("cart", "product", "variant")
         indexes = [
-            models.Index(fields=["cart"]),
-            models.Index(fields=["product"]),
+            models.Index(fields=["cart", "product"]),
         ]
 
     def __str__(self):
@@ -171,40 +122,24 @@ class CartItem(TimestampedModel):
 
     @property
     def unit_price(self):
-        """
-        Get the unit price of the item.
-        """
-        if self.variant:
+        """Get the unit price of the item."""
+        if self.variant and self.variant.price:
             return self.variant.price
-        return self.product.current_price
+        return self.product.current_price or self.product.price
 
     @property
     def total_price(self):
-        """
-        Calculate the total price for this item.
-        """
-        return self.unit_price * self.quantity
+        """Calculate the total price for this item."""
+        return Decimal(str(self.unit_price)) * self.quantity
 
     @property
-    def is_digital(self):
-        """
-        Returns True if this cart item is for a digital product.
-        """
-        return self.product.is_digital
+    def product_name(self):
+        """Get product name for serialization."""
+        return self.product.name
 
-    def save(self, *args, **kwargs):
-        """
-        Override save to update cart item types when cart item is saved.
-        """
-        super().save(*args, **kwargs)
-        # Update cart's digital/physical item flags
-        self.cart.update_item_types()
-
-    def delete(self, *args, **kwargs):
-        """
-        Override delete to update cart item types when cart item is deleted.
-        """
-        cart = self.cart
-        super().delete(*args, **kwargs)
-        # Update cart's digital/physical item flags
-        cart.update_item_types()
+    @property
+    def product_image(self):
+        """Get product image URL."""
+        if self.product.main_image:
+            return self.product.main_image.url
+        return None

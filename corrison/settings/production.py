@@ -18,15 +18,14 @@ ALLOWED_HOSTS = [
 
 # Database in base.py is already set up to use environment variables
 
-
 # Session Configuration
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
-SESSION_COOKIE_NAME = "corrison_sessionid"  # Add unique name
+SESSION_COOKIE_NAME = "sessionid"  # Change back to standard name
 SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_HTTPONLY = False  # Change from True to False to allow JS access
-SESSION_COOKIE_SAMESITE = "None"  # Already set correctly
-SESSION_COOKIE_DOMAIN = ".corrisonapi.com"  # Add this to share across subdomains
-SESSION_COOKIE_PATH = "/"  # Add this
+SESSION_COOKIE_HTTPONLY = True  # Change back to True for security
+SESSION_COOKIE_SAMESITE = "None"  # Required for cross-origin
+SESSION_COOKIE_DOMAIN = ".corrisonapi.com"
+SESSION_COOKIE_PATH = "/"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 SESSION_SAVE_EVERY_REQUEST = True
 

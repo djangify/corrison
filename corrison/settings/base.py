@@ -55,7 +55,7 @@ ROOT_URLCONF = "corrison.urls"
 
 # CORS Configuration
 # Since you're using AllowedOrigin model, we need to ensure CORS middleware can access it
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = []  # Empty because we're using the signal-based approach with AllowedOrigin model in django admin area
 CORS_ALLOW_ALL_ORIGINS = True  # before changing this back to false create a new ecommerce store that is not on the signal list and see if you can connect
 

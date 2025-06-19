@@ -20,8 +20,7 @@ from django.core.paginator import Paginator
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from .serializers import WishlistItemSerializer, WishlistItemCreateSerializer
+from .serializers import WishlistItemSerializer
 
 
 @login_required
@@ -299,72 +298,16 @@ def reset_password(request, token):
 
 
 class WishlistViewSet(viewsets.ModelViewSet):
-    """API viewset for wishlist management."""
-
     serializer_class = WishlistItemSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         if self.request.user.is_authenticated:
-            return WishlistItem.objects.filter(user=self.request.user).select_related(
-                "product"
-            )
+            return WishlistItem.objects.filter(user=self.request.user)
         return WishlistItem.objects.none()
 
     def create(self, request, *args, **kwargs):
-        """Handle adding items to wishlist with better error handling."""
-        # Use the create serializer for validation
-        create_serializer = WishlistItemCreateSerializer(data=request.data)
-
-        if not create_serializer.is_valid():
-            return Response(
-                create_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        product_id = create_serializer.validated_data["product"]
-
-        try:
-            product = Product.objects.get(id=product_id, is_active=True)
-        except Product.DoesNotExist:
-            return Response(
-                {"error": "Product not found or not active"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Check if already in wishlist
-        existing_item = WishlistItem.objects.filter(
-            user=request.user, product=product
-        ).first()
-
-        if existing_item:
-            # Return the existing item instead of erroring
-            serializer = self.get_serializer(existing_item)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        # Create new wishlist item
-        wishlist_item = WishlistItem.objects.create(user=request.user, product=product)
-
-        # Serialize and return
-        serializer = self.get_serializer(wishlist_item)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def destroy(self, request, *args, **kwargs):
-        """Handle removing items from wishlist."""
-        instance = self.get_object()
-
-        # Ensure user owns this wishlist item
-        if instance.user != request.user:
-            return Response(
-                {"error": "You don't have permission to delete this item"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        instance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=["post"], url_path="toggle")
-    def toggle_item(self, request):
-        """Toggle a product in/out of wishlist."""
+        """Override create to handle duplicate items gracefully"""
         product_id = request.data.get("product")
 
         if not product_id:
@@ -373,42 +316,27 @@ class WishlistViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            product = Product.objects.get(id=product_id, is_active=True)
+            product = Product.objects.get(pk=product_id, is_active=True)
         except Product.DoesNotExist:
             return Response(
-                {"error": "Product not found or not active"},
-                status=status.HTTP_404_NOT_FOUND,
+                {"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if exists
-        existing = WishlistItem.objects.filter(
+        # Check if item already exists in wishlist
+        existing_item = WishlistItem.objects.filter(
             user=request.user, product=product
         ).first()
 
-        if existing:
-            existing.delete()
+        if existing_item:
+            # Return the existing item instead of creating a duplicate
+            serializer = self.get_serializer(existing_item)
             return Response(
-                {"status": "removed", "product_id": str(product.id)},
-                status=status.HTTP_200_OK,
-            )
-        else:
-            item = WishlistItem.objects.create(user=request.user, product=product)
-            serializer = self.get_serializer(item)
-            return Response(
-                {"status": "added", "item": serializer.data},
-                status=status.HTTP_201_CREATED,
+                serializer.data,
+                status=status.HTTP_200_OK,  # Return 200 instead of error
             )
 
-    @action(detail=False, methods=["get"], url_path="check")
-    def check_products(self, request):
-        """Check which products are in the user's wishlist."""
-        product_ids = request.query_params.getlist("products[]")
+        # Create new wishlist item
+        wishlist_item = WishlistItem.objects.create(user=request.user, product=product)
 
-        if not product_ids:
-            return Response({"in_wishlist": []})
-
-        in_wishlist = WishlistItem.objects.filter(
-            user=request.user, product_id__in=product_ids
-        ).values_list("product_id", flat=True)
-
-        return Response({"in_wishlist": [str(pid) for pid in in_wishlist]})
+        serializer = self.get_serializer(wishlist_item)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
