@@ -138,15 +138,21 @@ def logout(request):
         return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([AllowAny])
-def verify_email(request, token):
-    """Verify user email with token"""
-    serializer = EmailVerificationSerializer(data={"token": token})
+def verify_email(request):
+    """Verify user's email with token"""
+    serializer = EmailVerificationSerializer(data=request.data)
 
     if serializer.is_valid():
+        token = serializer.validated_data["token"]
+
         try:
+            # Find profile with this token
             profile = Profile.objects.get(email_verification_token=token)
+
+            # Get the user from the profile
+            user = profile.user
 
             # Check token expiry
             if profile.email_verification_sent_at:
@@ -169,12 +175,39 @@ def verify_email(request, token):
 
             # Send welcome email
             try:
-                send_welcome_email(profile.user)
+                send_welcome_email(user)
             except Exception as e:
+                # Log error but continue
                 print(f"Failed to send welcome email: {e}")
 
+            # Send download ready emails for any pending digital orders
+            from checkout.models import OrderItem
+            from accounts.utils import send_download_ready_email
+
+            try:
+                # Find all digital items for this user
+                digital_items = OrderItem.objects.filter(
+                    order__user=user, is_digital=True, download_token__isnull=False
+                ).select_related("order")
+
+                for item in digital_items:
+                    send_download_ready_email(item, user)
+            except Exception as e:
+                # Log error but continue
+                print(f"Failed to send download ready emails: {e}")
+
+            # Generate JWT tokens for auto-login after verification
+            refresh = RefreshToken.for_user(user)
+
             return Response(
-                {"message": "Email verified successfully! Welcome to Corrison."}
+                {
+                    "message": "Email verified successfully. You can now access all features.",
+                    "tokens": {
+                        "refresh": str(refresh),
+                        "access": str(refresh.access_token),
+                    },
+                    "user": UserSerializer(user).data,
+                }
             )
 
         except Profile.DoesNotExist:

@@ -5,6 +5,8 @@ from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
 )
+import logging
+
 from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
@@ -24,6 +26,8 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -267,13 +271,13 @@ def create_payment_intent(request):
 @permission_classes([AllowAny])
 def create_order(request):
     """
-    Handle digital-only order creation.
+    Handle digital-only order creation after successful payment.
     Orders now require authenticated users - no guest checkout.
     """
     try:
         from checkout.services.checkout import CheckoutService
-        from cart.services.cart_manager import CartService
         from django.db import transaction
+        from checkout.models import Payment
 
         # Get payment intent ID
         payment_intent_id = request.data.get("payment_intent_id")
@@ -321,36 +325,27 @@ def create_order(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get cart data
-        cart_token = payment_intent.metadata.get("cart_token")
-        if not cart_token:
-            cart_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-
-        cart_data = CartService.get_cart_data(request, cart_token)
-
-        if cart_data["item_count"] == 0:
-            return Response(
-                {"error": "Cart is empty"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         # Digital-only order data
         order_data = {
             "email": user.email,
             "notes": request.data.get("notes", ""),
             "payment_method": "stripe",
             "digital_delivery_email": user.email,
-            "cart_token": cart_data["cart_token"],
+            "stripe_payment_intent_id": payment_intent_id,
         }
 
         # Create the order with user
         with transaction.atomic():
             # Override the request user for order creation
+            original_user = request.user
             request.user = user
 
             success, order, error_message = CheckoutService.create_order_from_cart(
                 request, **order_data
             )
+
+            # Restore original user
+            request.user = original_user
 
             if not success:
                 return Response(
@@ -368,10 +363,13 @@ def create_order(request):
                 payment_data={"payment_intent": payment_intent_id},
             )
 
-            # Update order payment status
-            order.payment_status = "paid"
-            order.status = "processing"
-            order.save()
+            # The Payment model's save() method will automatically:
+            # 1. Update order payment status to 'paid'
+            # 2. Set up digital downloads via setup_digital_product()
+            # 3. Update order status
+
+            # Process successful payment (sends emails, marks as complete if digital-only)
+            CheckoutService.process_successful_payment(order)
 
         # Serialize the order
         serializer = OrderSerializer(order, context={"request": request})
@@ -392,6 +390,7 @@ def create_order(request):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
+        logger.error(f"Error in create_order: {str(e)}")
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+from datetime import timedelta
 from core.models import TimestampedModel
 from products.models import Product, ProductVariant
 
@@ -10,6 +13,7 @@ User = get_user_model()
 class Order(TimestampedModel):
     """
     Order model to store order information.
+    Supports digital products, physical products, and appointment bookings.
     """
 
     ORDER_STATUS_CHOICES = (
@@ -49,7 +53,7 @@ class Order(TimestampedModel):
         help_text="Email for digital product delivery (if different from customer email)",
     )
 
-    # Appointment support - add these fields after admin_notes
+    # Appointment support
     appointment_type = models.ForeignKey(
         "appointments.AppointmentType",
         on_delete=models.CASCADE,
@@ -79,6 +83,15 @@ class Order(TimestampedModel):
     payment_method = models.CharField(max_length=50, blank=True, null=True)
     payment_id = models.CharField(max_length=255, blank=True, null=True)
 
+    # Stripe specific
+    stripe_payment_intent_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Stripe Payment Intent ID for this order",
+    )
+
     # Notes
     customer_notes = models.TextField(blank=True, null=True)
     admin_notes = models.TextField(blank=True, null=True)
@@ -95,6 +108,7 @@ class Order(TimestampedModel):
             models.Index(fields=["created_at"]),
             models.Index(fields=["has_digital_items"]),
             models.Index(fields=["has_physical_items"]),
+            models.Index(fields=["stripe_payment_intent_id"]),
         ]
 
     def __str__(self):
@@ -113,6 +127,16 @@ class Order(TimestampedModel):
         Return the delivery email for digital products.
         """
         return self.digital_delivery_email or self.get_customer_email()
+
+    @property
+    def customer_email(self):
+        """Alias for get_customer_email()"""
+        return self.get_customer_email()
+
+    @property
+    def delivery_email(self):
+        """Alias for get_delivery_email()"""
+        return self.get_delivery_email()
 
     @property
     def is_paid(self):
@@ -161,7 +185,9 @@ class Order(TimestampedModel):
         import random
         import string
 
-        order_number = "".join(random.choices(string.digits, k=8))
+        # Use format COR + 8 digits
+        prefix = "COR"
+        order_number = prefix + "".join(random.choices(string.digits, k=8))
 
         # Check if order number exists
         if Order.objects.filter(order_number=order_number).exists():
@@ -186,10 +212,21 @@ class Order(TimestampedModel):
             self.subtotal + self.shipping_cost + self.tax_amount - self.discount_amount
         )
 
+    def mark_as_completed(self):
+        """Mark order as completed/delivered"""
+        self.status = "delivered"
+        self.save()
+
+    def mark_as_cancelled(self):
+        """Mark order as cancelled"""
+        self.status = "cancelled"
+        self.save()
+
 
 class OrderItem(TimestampedModel):
     """
     Order item model to store items in an order.
+    Enhanced with digital download support.
     """
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
@@ -205,10 +242,16 @@ class OrderItem(TimestampedModel):
 
     # Digital product fields
     is_digital = models.BooleanField(default=False)
-    download_token = models.CharField(max_length=255, blank=True, unique=True)
+    download_token = models.CharField(
+        max_length=64, blank=True, unique=True, db_index=True
+    )
     download_expires_at = models.DateTimeField(null=True, blank=True)
     download_count = models.PositiveIntegerField(default=0)
-    max_downloads = models.PositiveIntegerField(default=5)
+    max_downloads = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum number of downloads allowed. None or 0 = unlimited",
+    )
 
     class Meta:
         verbose_name = _("Order Item")
@@ -241,16 +284,25 @@ class OrderItem(TimestampedModel):
         if not self.is_digital or not self.download_token:
             return False
 
+        # Check if order is paid
+        if self.order.payment_status != "paid":
+            return False
+
         # Check expiry
         if self.download_expires_at:
-            from django.utils import timezone
-
             if timezone.now() > self.download_expires_at:
                 return False
 
         # Check download limit
-        if self.max_downloads > 0 and self.download_count >= self.max_downloads:
-            return False
+        if self.max_downloads and self.max_downloads > 0:
+            if self.download_count >= self.max_downloads:
+                return False
+
+        # Check if user email is verified (if user exists)
+        if self.order.user and hasattr(self.order.user, "profile"):
+            profile = self.order.user.profile
+            if hasattr(profile, "email_verified") and not profile.email_verified:
+                return False
 
         return True
 
@@ -266,39 +318,57 @@ class OrderItem(TimestampedModel):
         """
         Generate a unique download token for this item.
         """
-        import secrets
-
-        token = secrets.token_urlsafe(32)
+        token = get_random_string(32)
 
         # Ensure uniqueness
         while OrderItem.objects.filter(download_token=token).exists():
-            token = secrets.token_urlsafe(32)
+            token = get_random_string(32)
 
         return token
+
+    def setup_digital_product(self):
+        """
+        Set up digital product fields after order payment.
+        Call this when order is marked as paid.
+        """
+        if not self.is_digital:
+            return
+
+        # Generate download token if not exists
+        if not self.download_token:
+            self.download_token = self.generate_download_token()
+
+        # Set download expiry
+        if self.product.download_expiry_days:
+            self.download_expires_at = timezone.now() + timedelta(
+                days=self.product.download_expiry_days
+            )
+
+        # Set download limit
+        if self.product.download_limit:
+            self.max_downloads = self.product.download_limit
+
+        self.save()
+
+    def increment_download_count(self):
+        """Increment download count when file is downloaded"""
+        self.download_count += 1
+        self.save()
 
     def save(self, *args, **kwargs):
         """
         Override save to handle digital product setup.
         """
+        # Set product info if not already set
+        if not self.product_name:
+            self.product_name = self.product.name
+        if not self.sku and hasattr(self.product, "sku"):
+            self.sku = self.product.sku
+        if self.variant and not self.variant_name:
+            self.variant_name = self.variant.name
+
         # Set is_digital based on product type
         self.is_digital = self.product.is_digital
-
-        # Generate download token for digital products
-        if self.is_digital and not self.download_token:
-            self.download_token = self.generate_download_token()
-
-            # Set download expiry
-            if self.product.download_expiry_days:
-                from django.utils import timezone
-                from datetime import timedelta
-
-                self.download_expires_at = timezone.now() + timedelta(
-                    days=self.product.download_expiry_days
-                )
-
-            # Set download limit
-            if self.product.download_limit:
-                self.max_downloads = self.product.download_limit
 
         super().save(*args, **kwargs)
 
@@ -323,7 +393,7 @@ class Payment(TimestampedModel):
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payments")
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES)
-    transaction_id = models.CharField(max_length=255)
+    transaction_id = models.CharField(max_length=255, unique=True, db_index=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default="pending"
@@ -350,6 +420,11 @@ class Payment(TimestampedModel):
         if self.status == "completed" and self.order.payment_status != "paid":
             self.order.payment_status = "paid"
             self.order.save()
+
+            # Set up digital downloads when payment is completed
+            for item in self.order.items.filter(is_digital=True):
+                item.setup_digital_product()
+
         elif self.status == "refunded" and self.order.payment_status != "refunded":
             self.order.payment_status = "refunded"
             self.order.save()

@@ -169,3 +169,186 @@ The {getattr(settings, "SITE_NAME", "Corrison")} Team
     except Exception as e:
         print(f"Failed to send password reset email: {e}")
         return False
+
+
+def send_order_confirmation_email(order, user=None, guest_email=None):
+    """Send order confirmation email - NO DIRECT DOWNLOAD LINKS for security"""
+
+    # Determine recipient email
+    recipient_email = None
+    recipient_name = "Customer"
+
+    if user and user.email:
+        recipient_email = user.email
+        recipient_name = user.get_full_name() or user.username
+    elif guest_email:
+        recipient_email = guest_email
+    elif order.guest_email:
+        recipient_email = order.guest_email
+
+    if not recipient_email:
+        print("No recipient email found for order confirmation")
+        return False
+
+    subject = f"Order Confirmation #{order.order_number} - {getattr(settings, 'SITE_NAME', 'Corrison')}"
+
+    # Get order items with digital products
+    digital_items = []
+    physical_items = []
+
+    for item in order.items.all():
+        if item.is_digital:
+            digital_items.append(item)
+        else:
+            physical_items.append(item)
+
+    # Create order confirmation URL
+    order_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/order-confirmation/{order.order_number}/"
+
+    # Text message (fallback)
+    message = f"""
+Hello {recipient_name},
+
+Thank you for your order from {getattr(settings, "SITE_NAME", "Corrison")}!
+
+Order Number: {order.order_number}
+Order Date: {order.created_at.strftime("%B %d, %Y")}
+Total: ${order.total}
+
+ORDER DETAILS:
+"""
+
+    # Add items to text message
+    for item in order.items.all():
+        message += (
+            f"\n- {item.product_name} (Qty: {item.quantity}) - ${item.total_price}"
+        )
+        if item.is_digital:
+            message += " [Digital Download]"
+
+    message += f"\n\nSubtotal: ${order.subtotal}"
+    if order.tax_amount:
+        message += f"\nTax: ${order.tax_amount}"
+    message += f"\nTotal: ${order.total}"
+
+    # Add download instructions for digital items - NO DIRECT LINKS
+    if digital_items:
+        message += "\n\nDIGITAL DOWNLOADS:"
+        message += "\nYour digital products are ready for download!"
+
+        if user and user.profile.email_verified:
+            message += "\n\nTo access your downloads:"
+            message += f"\n1. Log in to your account at {getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login"
+            message += "\n2. Go to 'My Products' or 'Downloads' in your dashboard"
+            message += "\n3. Click the download button next to each product"
+        else:
+            message += "\n\nIMPORTANT: To access your downloads:"
+            message += (
+                "\n1. Verify your email address (check for our verification email)"
+            )
+            message += f"\n2. Log in to your account at {getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login"
+            message += "\n3. Go to 'My Products' or 'Downloads' in your dashboard"
+            message += "\n4. Click the download button next to each product"
+
+        message += "\n\nYour downloads are secure and can only be accessed when logged into your account."
+
+    message += f"\n\nYou can view your complete order details here:\n{order_url}"
+
+    message += f"""
+
+Need help? Contact our support team at {getattr(settings, "SUPPORT_EMAIL", "support@corrison.com")}
+
+Thank you for your purchase!
+
+Best regards,
+The {getattr(settings, "SITE_NAME", "Corrison")} Team
+"""
+
+    try:
+        # Try to use HTML template
+        try:
+            html_message = render_to_string(
+                "emails/order_confirmation.html",
+                {
+                    "order": order,
+                    "user": user,
+                    "recipient_name": recipient_name,
+                    "site_name": getattr(settings, "SITE_NAME", "Corrison"),
+                    "site_url": getattr(
+                        settings, "SITE_URL", "https://corrisonapi.com"
+                    ),
+                    "login_url": f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login",
+                    "order_url": order_url,
+                    "digital_items": digital_items,
+                    "physical_items": physical_items,
+                    "has_digital_items": len(digital_items) > 0,
+                    "email_verified": user.profile.email_verified if user else False,
+                    "support_email": getattr(
+                        settings, "SUPPORT_EMAIL", "support@corrison.com"
+                    ),
+                },
+            )
+        except Exception:
+            html_message = None
+
+        send_mail(
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@corrisonapi.com"),
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Failed to send order confirmation email: {e}")
+        return False
+
+
+def send_download_ready_email(order_item, user):
+    """Send email when downloads are ready - directs to login, NO DIRECT LINKS"""
+
+    if not user or not user.email:
+        return False
+
+    subject = f"Your downloads are ready - {order_item.product_name}"
+
+    login_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login"
+
+    message = f"""
+Hello {user.get_full_name() or user.username},
+
+Great news! Your digital downloads are now available in your account.
+
+Product: {order_item.product_name}
+Order #: {order_item.order.order_number}
+
+TO ACCESS YOUR DOWNLOADS:
+1. Log in to your account: {login_url}
+2. Go to "My Products" or "Downloads" from your dashboard
+3. Find "{order_item.product_name}" and click the Download button
+
+Download Details:
+- Downloads remaining: {order_item.max_downloads if order_item.max_downloads else "Unlimited"}
+- Expires: {order_item.download_expires_at.strftime("%B %d, %Y") if order_item.download_expires_at else "Never"}
+
+Your downloads are secure and require you to be logged into your account.
+
+Need help? Contact support at {getattr(settings, "SUPPORT_EMAIL", "support@corrison.com")}
+
+Best regards,
+The {getattr(settings, "SITE_NAME", "Corrison")} Team
+"""
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@corrisonapi.com"),
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Failed to send download ready email: {e}")
+        return False

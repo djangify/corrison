@@ -6,7 +6,12 @@ from blog.views import BlogPostViewSet
 from linkhub.views import LinkHubViewSet
 from pages.views import PageViewSet, TestimonialViewSet
 from accounts import api_views as auth_views
-from checkout.views import check_payment_status, OrderSettingsViewSet
+from checkout.views import (
+    check_payment_status,
+    OrderSettingsViewSet,
+    download_product,
+    user_downloads,
+)
 from cart.views import CartViewSet, CartItemViewSet
 from appointments.views import (
     CalendarUserViewSet,
@@ -102,6 +107,9 @@ urlpatterns = [
     path("create-order/", views.create_order, name="create-order"),
     path("check-payment-status/", check_payment_status, name="check-payment-status"),
     path("stripe/webhook/", stripe_webhook, name="stripe-webhook"),
+    # Download endpoints (NEW)
+    path("downloads/<str:token>/", download_product, name="download-product"),
+    path("my-downloads/", user_downloads, name="user-downloads"),
     # Placeholder image
     path(
         "placeholder/<int:width>/<int:height>/",
