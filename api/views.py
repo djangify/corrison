@@ -146,7 +146,7 @@ def create_payment_intent(request):
     try:
         import stripe
         from django.conf import settings
-        from cart.services.cart_manager import CartService
+        from cart.models import Cart, CartItem
         from accounts.models import Profile
         from accounts.utils import send_verification_email
         from django.db import transaction
@@ -161,10 +161,10 @@ def create_payment_intent(request):
             first_name = user.first_name
             last_name = user.last_name
 
-            # Get cart data
-            cart_data = CartService.get_cart_data(request)
+            # Get cart directly for authenticated user
+            cart = Cart.objects.filter(user=user, is_active=True).first()
 
-            if cart_data["item_count"] == 0:
+            if not cart or cart.items.count() == 0:
                 return Response(
                     {"error": "Cart is empty"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -175,8 +175,8 @@ def create_payment_intent(request):
 
             # Create payment intent metadata for authenticated user
             metadata = {
-                "cart_token": cart_data["cart_token"],
-                "item_count": cart_data["item_count"],
+                "session_key": request.session.session_key or "",
+                "item_count": str(cart.items.count()),
                 "is_digital_only": "true",
                 "email": email,
                 "first_name": first_name,
@@ -187,7 +187,7 @@ def create_payment_intent(request):
 
             # Create payment intent
             intent = stripe.PaymentIntent.create(
-                amount=int(cart_data["subtotal"] * 100),  # Convert to cents
+                amount=int(cart.subtotal * 100),  # Convert to cents
                 currency="usd",
                 metadata=metadata,
             )
@@ -201,10 +201,18 @@ def create_payment_intent(request):
                 }
             )
 
-        # Get cart data - just use session-based cart
-        cart_data = CartService.get_cart_data(request)
+        # Get cart for anonymous users
+        session_key = request.session.session_key
+        if not session_key:
+            request.session.create()
+            session_key = request.session.session_key
 
-        if cart_data["item_count"] == 0:
+        cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
+
+        print(f"Cart for guest checkout: {cart}")
+        print(f"Session key: {session_key}")
+
+        if not cart or cart.items.count() == 0:
             return Response(
                 {"error": "Cart is empty"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -276,13 +284,35 @@ def create_payment_intent(request):
                     except Exception as e:
                         print(f"Failed to send verification email: {e}")
 
+                    # Transfer cart from anonymous session to new user
+                    if session_key:
+                        # Get the anonymous cart
+                        anon_cart = Cart.objects.filter(
+                            session_key=session_key, is_active=True
+                        ).first()
+
+                        if anon_cart:
+                            # Transfer items to user's cart
+                            user_cart, created = Cart.objects.get_or_create(user=user)
+
+                            # Move all items
+                            for item in anon_cart.items.all():
+                                CartItem.objects.update_or_create(
+                                    cart=user_cart,
+                                    product=item.product,
+                                    defaults={"quantity": item.quantity},
+                                )
+
+                            # Delete anonymous cart
+                            anon_cart.delete()
+
         # Set Stripe API key
         stripe.api_key = settings.STRIPE_SECRET_KEY
 
         # Create payment intent metadata
         metadata = {
-            "cart_token": cart_data["cart_token"],
-            "item_count": cart_data["item_count"],
+            "session_key": session_key,
+            "item_count": str(cart.items.count()),
             "is_digital_only": "true",
             "email": email,
             "first_name": first_name,
@@ -295,7 +325,7 @@ def create_payment_intent(request):
 
         # Create payment intent for digital products (no shipping)
         intent = stripe.PaymentIntent.create(
-            amount=int(cart_data["subtotal"] * 100),  # Convert to cents
+            amount=int(cart.subtotal * 100),  # Convert to cents
             currency="usd",
             metadata=metadata,
         )
@@ -314,6 +344,7 @@ def create_payment_intent(request):
         return Response(response_data)
 
     except Exception as e:
+        print(f"Error in create_payment_intent: {str(e)}")
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -18,23 +18,30 @@ class CheckoutService:
         Create an order from the current cart
         """
         try:
-            # Get cart - use session for anonymous or user for authenticated
+            # Get the user (might be newly created)
             user = request.user if request.user.is_authenticated else None
             cart = None
 
-            if user:
-                # For authenticated users, get their cart
+            # CRITICAL: Check for session cart FIRST, even for authenticated users
+            # This handles newly created users whose cart hasn't been transferred yet
+            session_key = request.session.session_key
+            if session_key:
+                cart = Cart.objects.filter(
+                    session_key=session_key, is_active=True
+                ).first()
+
+            # If no session cart found and user exists, try user cart
+            if not cart and user:
                 cart = Cart.objects.filter(user=user, is_active=True).first()
-            else:
-                # For anonymous users, use session
-                session_key = request.session.session_key
-                if session_key:
-                    cart = Cart.objects.filter(
-                        session_key=session_key, user__isnull=True, is_active=True
-                    ).first()
 
             if not cart or not cart.items.exists():
+                logger.error(f"Cart not found. Session: {session_key}, User: {user}")
                 return False, None, "Cart is empty"
+
+            # If cart belongs to session but we have a user, assign it
+            if cart and user and not cart.user:
+                cart.user = user
+                cart.save()
 
             # Create order
             order = Order.objects.create(

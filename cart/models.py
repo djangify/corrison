@@ -32,7 +32,9 @@ class Cart(models.Model):
     def __str__(self):
         if self.user:
             return f"Cart for {self.user.email}"
-        return f"Cart {self.id} (Session: {self.session_key[:8]}...)"
+        if self.session_key:
+            return f"Cart {self.id} (Session: {self.session_key[:8]}...)"
+        return f"Cart {self.id} (No session)"
 
     @property
     def subtotal(self):
