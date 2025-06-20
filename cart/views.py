@@ -30,42 +30,65 @@ class CartViewSet(viewsets.ViewSet):
         session_key = request.session.session_key
 
         with transaction.atomic():
-            # Get or create cart for this session
+            # For authenticated users, try to get their cart first
+            if request.user.is_authenticated:
+                # Try to get user's active cart
+                cart = (
+                    Cart.objects.filter(user=request.user, is_active=True)
+                    .order_by("-updated_at")
+                    .first()
+                )
+
+                if cart:
+                    # Update session_key if needed
+                    if cart.session_key != session_key:
+                        cart.session_key = session_key
+                        cart.save(update_fields=["session_key"])
+                    return cart
+
+            # Try to get cart by session key
             try:
-                # First try to get active cart
                 cart = Cart.objects.get(session_key=session_key, is_active=True)
+
+                # If user is authenticated and cart has no user, assign it
+                if request.user.is_authenticated and not cart.user:
+                    cart.user = request.user
+                    cart.save(update_fields=["user"])
+
             except Cart.DoesNotExist:
-                # Create new cart
-                cart = Cart.objects.create(
+                # Use get_or_create to prevent race conditions
+                cart, created = Cart.objects.get_or_create(
                     session_key=session_key,
                     is_active=True,
-                    user=request.user if request.user.is_authenticated else None,
+                    defaults={
+                        "user": request.user if request.user.is_authenticated else None,
+                        "is_active": True,
+                    },
                 )
+
             except Cart.MultipleObjectsReturned:
-                # Multiple carts found - get the one with items or the most recent
+                # Multiple carts found - consolidate them
                 carts = Cart.objects.filter(
                     session_key=session_key, is_active=True
                 ).order_by("-created_at")
 
                 # Prefer cart with items
+                cart_with_items = None
                 for c in carts:
                     if c.items.exists():
-                        cart = c
-                        # Deactivate other carts
-                        carts.exclude(id=c.id).update(is_active=False)
+                        cart_with_items = c
                         break
+
+                if cart_with_items:
+                    cart = cart_with_items
                 else:
-                    # No cart with items, use most recent
                     cart = carts.first()
-                    # Deactivate other carts
-                    carts.exclude(id=cart.id).update(is_active=False)
 
-            # If user is authenticated and cart has no user, assign it
-            if request.user.is_authenticated and not cart.user:
-                cart.user = request.user
-                cart.save(update_fields=["user"])
+                # Deactivate all other carts
+                carts.exclude(id=cart.id).update(is_active=False)
 
-                # Check if user has other active carts to merge
+            # If user is authenticated, check for other carts to merge
+            if request.user.is_authenticated and cart.user == request.user:
                 other_carts = Cart.objects.filter(
                     user=request.user, is_active=True
                 ).exclude(id=cart.id)

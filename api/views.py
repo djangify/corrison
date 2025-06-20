@@ -151,12 +151,33 @@ def create_payment_intent(request):
         from accounts.utils import send_verification_email
         from django.db import transaction
 
-        # Check if user is authenticated via Django session FIRST
+        print(f"\n=== PAYMENT INTENT REQUEST ===")
+        print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
+        print(f"Session key: {request.session.session_key}")
+
+        # Check if user is authenticated via Django session OR JWT
+        user = None
         if request.user and request.user.is_authenticated:
             print(f"Session authenticated user detected: {request.user.email}")
-
-            # Use the authenticated user's information
             user = request.user
+        else:
+            # Check for JWT authentication
+            from rest_framework_simplejwt.authentication import JWTAuthentication
+
+            try:
+                jwt_auth = JWTAuthentication()
+                validated_token = jwt_auth.get_validated_token(
+                    jwt_auth.get_raw_token(request)
+                )
+                jwt_user = jwt_auth.get_user(validated_token)
+                if jwt_user and jwt_user.is_authenticated:
+                    print(f"JWT authenticated user detected: {jwt_user.email}")
+                    user = jwt_user
+            except Exception as e:
+                print(f"No JWT authentication found: {e}")
+
+        if user:
+            # Use the authenticated user's information
             email = user.email
             first_name = user.first_name
             last_name = user.last_name
@@ -164,11 +185,43 @@ def create_payment_intent(request):
             # Get cart directly for authenticated user
             cart = Cart.objects.filter(user=user, is_active=True).first()
 
+            print(
+                f"Cart lookup result: Cart ID {cart.id if cart else 'None'}, Items: {cart.items.count() if cart else 0}"
+            )
+
+            # NEW: If no user cart or cart is empty, check for session cart
             if not cart or cart.items.count() == 0:
+                session_key = request.session.session_key
+                if session_key:
+                    session_cart = Cart.objects.filter(
+                        session_key=session_key, is_active=True
+                    ).first()
+
+                    if session_cart and session_cart.items.exists():
+                        if not cart:
+                            # No user cart exists, just use session cart and assign user
+                            session_cart.user = user
+                            session_cart.save()
+                            cart = session_cart
+                        else:
+                            # User cart exists but is empty, merge session cart into it
+                            cart.merge_with(session_cart)
+
+            # Re-check cart after potential merge
+            if not cart:
+                # Try one more time to get the user's cart after merge
+                cart = Cart.objects.filter(user=user, is_active=True).first()
+
+            if not cart or cart.items.count() == 0:
+                print(
+                    f"Cart empty after merge. Cart: {cart}, Items: {cart.items.count() if cart else 0}"
+                )
                 return Response(
                     {"error": "Cart is empty"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            # REMOVED DUPLICATE CART CHECK
 
             # Set Stripe API key
             stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -183,6 +236,7 @@ def create_payment_intent(request):
                 "last_name": last_name,
                 "user_id": str(user.id),
                 "authenticated_user": "true",
+                "cart_id": str(cart.id),  # Add cart ID for webhook processing
             }
 
             # Debug the amount calculation
@@ -203,6 +257,7 @@ def create_payment_intent(request):
                 metadata=metadata,
             )
 
+            # RETURN HERE FOR AUTHENTICATED USERS
             return Response(
                 {
                     "client_secret": intent.client_secret,
@@ -249,18 +304,13 @@ def create_payment_intent(request):
         existing_user = User.objects.filter(email=email).first()
 
         if existing_user:
-            # NEW: Check if this is the currently logged-in user
-            if request.user.is_authenticated and request.user.email == email:
-                # Use the authenticated user's account
-                user = request.user
-            else:
-                # User exists but not logged in - they should log in
-                return Response(
-                    {
-                        "error": "An account already exists with this email. Please log in to complete your purchase."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # User exists but not logged in - they should log in
+            return Response(
+                {
+                    "error": "An account already exists with this email. Please log in to complete your purchase."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         else:
             # Create new user if password provided
             user = None
@@ -304,7 +354,9 @@ def create_payment_intent(request):
 
                         if anon_cart:
                             # Transfer items to user's cart
-                            user_cart, created = Cart.objects.get_or_create(user=user)
+                            user_cart, created = Cart.objects.get_or_create(
+                                user=user, is_active=True, defaults={"is_active": True}
+                            )
 
                             # Move all items
                             for item in anon_cart.items.all():
@@ -331,6 +383,7 @@ def create_payment_intent(request):
             "email": email,
             "first_name": first_name,
             "last_name": last_name,
+            "cart_id": str(cart.id),
         }
 
         if user:
@@ -397,10 +450,15 @@ def create_order(request):
     Handle digital-only order creation after successful payment.
     Orders now require authenticated users - no guest checkout.
     """
+    logger.info(f"=== CREATE ORDER CALLED ===")
+    logger.info(f"User: {request.user}")
+    logger.info(f"Is authenticated: {request.user.is_authenticated}")
+    logger.info(f"Session key: {request.session.session_key}")
+    logger.info(f"Payment intent ID: {request.data.get('payment_intent_id')}")
+
+    # KEEP ALL THE EXISTING CODE BELOW THIS
     logger.info("=== Starting create_order ===")
     logger.info(f"Request data: {request.data}")
-    logger.info(f"Request user: {request.user}")
-    logger.info(f"Session key: {request.session.session_key}")
 
     try:
         from checkout.services.checkout import CheckoutService
@@ -486,6 +544,30 @@ def create_order(request):
 
         # First try to get cart by user
         cart = Cart.objects.filter(user=user, is_active=True).first()
+
+        # NEW: If no user cart or cart is empty, check for session cart
+        if not cart or cart.items.count() == 0:
+            session_key = request.session.session_key
+            if session_key:
+                session_cart = Cart.objects.filter(
+                    session_key=session_key, is_active=True
+                ).first()
+
+                if session_cart and session_cart.items.exists():
+                    if not cart:
+                        # No user cart exists, just use session cart and assign user
+                        session_cart.user = user
+                        session_cart.save()
+                        cart = session_cart
+                    else:
+                        # User cart exists but is empty, merge session cart into it
+                        cart.merge_with(session_cart)
+
+        if not cart or cart.items.count() == 0:
+            return Response(
+                {"error": "Cart is empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # If no user cart, try session cart
         if not cart:

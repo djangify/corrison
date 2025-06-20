@@ -27,7 +27,8 @@ SESSION_COOKIE_SAMESITE = "None"  # Required for cross-origin
 SESSION_COOKIE_DOMAIN = ".corrisonapi.com"
 SESSION_COOKIE_PATH = "/"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_SAVE_EVERY_REQUEST = False
+
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

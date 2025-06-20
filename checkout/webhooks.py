@@ -1,16 +1,13 @@
 # checkout/webhooks.py
-import json
 import stripe
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from rest_framework import status
 from checkout.models import Order, Payment
 from cart.models import Cart
 from accounts.models import User
-from products.models import Product
-from courses.models import Course, Enrollment
+from courses.models import Enrollment
 import logging
 
 logger = logging.getLogger(__name__)
@@ -62,45 +59,70 @@ def handle_successful_payment(payment_intent):
     logger.info(f"Processing successful payment: {payment_intent['id']}")
 
     try:
-        # Get cart from metadata
+        # Get cart from metadata - try cart_id first, then cart_token for backwards compatibility
+        cart_id = payment_intent.get("metadata", {}).get("cart_id")
         cart_token = payment_intent.get("metadata", {}).get("cart_token")
-        if not cart_token:
-            logger.error("No cart token in payment intent metadata")
+
+        if not cart_id and not cart_token:
+            logger.error("No cart_id or cart_token in payment intent metadata")
             return
 
         # Find the cart
         try:
-            cart = Cart.objects.get(cart_token=cart_token)
+            if cart_id:
+                cart = Cart.objects.get(id=cart_id)
+            else:
+                cart = Cart.objects.get(cart_token=cart_token)
         except Cart.DoesNotExist:
-            logger.error(f"Cart not found for token: {cart_token}")
+            logger.error(f"Cart not found for id: {cart_id} or token: {cart_token}")
             return
 
         # Get or create user from payment details
         email = payment_intent.get("receipt_email") or payment_intent.get(
             "charges", {}
         ).get("data", [{}])[0].get("billing_details", {}).get("email")
+
+        # Also check metadata for email
+        if not email:
+            email = payment_intent.get("metadata", {}).get("email")
+
         if not email:
             logger.error("No email found in payment intent")
             return
 
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "username": email.split("@")[0],  # Simple username from email
-                "first_name": payment_intent.get("charges", {})
-                .get("data", [{}])[0]
-                .get("billing_details", {})
-                .get("name", "")
-                .split()[0],
-                "last_name": " ".join(
-                    payment_intent.get("charges", {})
+        # Check if user_id is in metadata (for authenticated users)
+        user_id = payment_intent.get("metadata", {}).get("user_id")
+
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                logger.error(f"User not found for id: {user_id}")
+                return
+        else:
+            # Get or create user from email
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    "username": email.split("@")[0],  # Simple username from email
+                    "first_name": payment_intent.get("metadata", {}).get(
+                        "first_name", ""
+                    )
+                    or payment_intent.get("charges", {})
                     .get("data", [{}])[0]
                     .get("billing_details", {})
                     .get("name", "")
-                    .split()[1:]
-                ),
-            },
-        )
+                    .split()[0],
+                    "last_name": payment_intent.get("metadata", {}).get("last_name", "")
+                    or " ".join(
+                        payment_intent.get("charges", {})
+                        .get("data", [{}])[0]
+                        .get("billing_details", {})
+                        .get("name", "")
+                        .split()[1:]
+                    ),
+                },
+            )
 
         # Create order
         order = Order.objects.create(
@@ -112,7 +134,6 @@ def handle_successful_payment(payment_intent):
             subtotal=payment_intent["amount"] / 100,  # Convert from cents
             total=payment_intent["amount"] / 100,
             order_type="digital",
-            cart_token=cart_token,
         )
 
         # Create payment record
@@ -125,14 +146,14 @@ def handle_successful_payment(payment_intent):
         )
 
         # Process cart items for digital fulfillment
-        for cart_item in cart.cartitem_set.all():
+        for cart_item in cart.items.all():
             # Create order item
             order.items.create(
                 product=cart_item.product,
                 course=cart_item.course,
                 quantity=cart_item.quantity,
-                price=cart_item.price,
-                subtotal=cart_item.subtotal,
+                price=cart_item.unit_price,
+                subtotal=cart_item.total_price,
             )
 
             # Handle course enrollments
@@ -142,7 +163,7 @@ def handle_successful_payment(payment_intent):
                     course=cart_item.course,
                     defaults={
                         "payment_status": "paid",
-                        "payment_amount": cart_item.subtotal,
+                        "payment_amount": cart_item.total_price,
                         "stripe_payment_intent_id": payment_intent["id"],
                     },
                 )
@@ -158,7 +179,8 @@ def handle_successful_payment(payment_intent):
                 )
 
         # Clear the cart after successful order
-        cart.cartitem_set.all().delete()
+        cart.items.all().delete()
+        cart.is_active = False
         cart.save()  # This will update totals
 
         # TODO: Send order confirmation email with download links

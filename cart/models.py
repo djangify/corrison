@@ -69,6 +69,11 @@ class Cart(models.Model):
         """Get total quantity of all items."""
         return sum(item.quantity for item in self.items.all())
 
+    @property
+    def has_digital_items(self):
+        """Check if cart has digital items."""
+        return self.items.exists()
+
     def clear(self):
         """Clear all items from the cart."""
         self.items.all().delete()
