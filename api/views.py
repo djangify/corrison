@@ -153,30 +153,28 @@ def create_payment_intent(request):
         from accounts.utils import send_verification_email
         from django.db import transaction
 
-        print(f"\n=== PAYMENT INTENT REQUEST ===")
-        print(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
-        print(f"Session key: {request.session.session_key}")
+        # Check if user is authenticated - this is the key fix
+        # We need to force DRF to authenticate the request
+        from rest_framework.request import Request
+        from rest_framework_simplejwt.authentication import JWTAuthentication
 
-        # Check if user is authenticated via Django session OR JWT
+        # Wrap request if needed
+        if not isinstance(request, Request):
+            request = Request(request)
+
+        # Try JWT authentication first
         user = None
-        if request.user and request.user.is_authenticated:
-            print(f"Session authenticated user detected: {request.user.email}")
-            user = request.user
-        else:
-            # Check for JWT authentication
-            from rest_framework_simplejwt.authentication import JWTAuthentication
+        jwt_auth = JWTAuthentication()
+        try:
+            auth_result = jwt_auth.authenticate(request)
+            if auth_result:
+                user = auth_result[0]
+        except Exception:
+            pass
 
-            try:
-                jwt_auth = JWTAuthentication()
-                validated_token = jwt_auth.get_validated_token(
-                    jwt_auth.get_raw_token(request)
-                )
-                jwt_user = jwt_auth.get_user(validated_token)
-                if jwt_user and jwt_user.is_authenticated:
-                    print(f"JWT authenticated user detected: {jwt_user.email}")
-                    user = jwt_user
-            except Exception as e:
-                print(f"No JWT authentication found: {e}")
+        # Fall back to session auth if no JWT
+        if not user and request.user.is_authenticated:
+            user = request.user
 
         if user:
             # Use the authenticated user's information
@@ -187,11 +185,7 @@ def create_payment_intent(request):
             # Get cart directly for authenticated user
             cart = Cart.objects.filter(user=user, is_active=True).first()
 
-            print(
-                f"Cart lookup result: Cart ID {cart.id if cart else 'None'}, Items: {cart.items.count() if cart else 0}"
-            )
-
-            # NEW: If no user cart or cart is empty, check for session cart
+            # If no user cart or cart is empty, check for session cart
             if not cart or cart.items.count() == 0:
                 session_key = request.session.session_key
                 if session_key:
@@ -215,9 +209,6 @@ def create_payment_intent(request):
                 cart = Cart.objects.filter(user=user, is_active=True).first()
 
             if not cart or cart.items.count() == 0:
-                print(
-                    f"Cart empty after merge. Cart: {cart}, Items: {cart.items.count() if cart else 0}"
-                )
                 return Response(
                     {"error": "Cart is empty"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -236,28 +227,21 @@ def create_payment_intent(request):
                 "last_name": last_name,
                 "user_id": str(user.id),
                 "authenticated_user": "true",
-                "cart_id": str(cart.id),  # Add cart ID for webhook processing
+                "cart_id": str(cart.id),
             }
 
-            # Debug the amount calculation
+            # Calculate amount
             cart_subtotal_float = float(cart.subtotal)
             stripe_amount = int(cart_subtotal_float * 100)
 
-            print(f"=== STRIPE AMOUNT DEBUG (Authenticated) ===")
-            print(f"Cart subtotal: {cart.subtotal}")
-            print(f"Cart subtotal (float): {cart_subtotal_float}")
-            print(f"Stripe amount (cents): {stripe_amount}")
-            print(f"Expected dollars: ${stripe_amount / 100}")
-            print(f"=========================")
-
             # Create payment intent
             intent = stripe.PaymentIntent.create(
-                amount=stripe_amount,  # Use the calculated amount
+                amount=stripe_amount,
                 currency="usd",
                 metadata=metadata,
             )
 
-            # RETURN HERE FOR AUTHENTICATED USERS - THIS IS THE FIX!
+            # RETURN HERE FOR AUTHENTICATED USERS
             return Response(
                 {
                     "client_secret": intent.client_secret,
@@ -276,9 +260,6 @@ def create_payment_intent(request):
             session_key = request.session.session_key
 
         cart = Cart.objects.filter(session_key=session_key, is_active=True).first()
-
-        print(f"Cart for guest checkout: {cart}")
-        print(f"Session key: {session_key}")
 
         if not cart or cart.items.count() == 0:
             return Response(
@@ -344,8 +325,8 @@ def create_payment_intent(request):
                     # Send verification email
                     try:
                         send_verification_email(user, token)
-                    except Exception as e:
-                        print(f"Failed to send verification email: {e}")
+                    except Exception:
+                        pass
 
                     # Transfer cart from anonymous session to new user
                     if session_key:
@@ -371,7 +352,7 @@ def create_payment_intent(request):
                             # Delete anonymous cart
                             anon_cart.delete()
 
-                            # CRITICAL: Use the user's cart for the rest of the process
+                            # Use the user's cart for the rest of the process
                             cart = user_cart
 
         # Set Stripe API key
@@ -392,34 +373,13 @@ def create_payment_intent(request):
             metadata["user_id"] = str(user.id)
             metadata["new_user"] = "true"
 
-        # Debug the cart and amount calculation
-        print(f"=== CART DEBUG ===")
-        print(f"Cart exists: {cart is not None}")
-        print(f"Cart ID: {cart.id if cart else 'No cart'}")
-        print(f"Cart items count: {cart.items.count() if cart else 0}")
-        print(f"Cart is_active: {cart.is_active if cart else 'N/A'}")
-
-        # Debug each item
-        if cart and cart.items.exists():
-            for item in cart.items.all():
-                print(
-                    f"Item: {item.product.name} - Price: {item.unit_price} - Qty: {item.quantity} - Total: {item.total_price}"
-                )
-
         cart_subtotal_decimal = cart.subtotal if cart else 0
         cart_subtotal_float = float(cart_subtotal_decimal)
         stripe_amount = int(cart_subtotal_float * 100)
 
-        print(f"=== STRIPE AMOUNT DEBUG ===")
-        print(f"Cart subtotal (Decimal): {cart_subtotal_decimal}")
-        print(f"Cart subtotal (float): {cart_subtotal_float}")
-        print(f"Stripe amount (cents): {stripe_amount}")
-        print(f"Expected dollars: ${stripe_amount / 100}")
-        print(f"=========================")
-
         # Create payment intent for digital products (no shipping)
         intent = stripe.PaymentIntent.create(
-            amount=stripe_amount,  # Use the calculated amount
+            amount=stripe_amount,
             currency="usd",
             metadata=metadata,
         )
@@ -438,7 +398,6 @@ def create_payment_intent(request):
         return Response(response_data)
 
     except Exception as e:
-        print(f"Error in create_payment_intent: {str(e)}")
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -452,16 +411,6 @@ def create_order(request):
     Handle digital-only order creation after successful payment.
     Orders now require authenticated users - no guest checkout.
     """
-    logger.info(f"=== CREATE ORDER CALLED ===")
-    logger.info(f"User: {request.user}")
-    logger.info(f"Is authenticated: {request.user.is_authenticated}")
-    logger.info(f"Session key: {request.session.session_key}")
-    logger.info(f"Payment intent ID: {request.data.get('payment_intent_id')}")
-
-    # KEEP ALL THE EXISTING CODE BELOW THIS
-    logger.info("=== Starting create_order ===")
-    logger.info(f"Request data: {request.data}")
-
     try:
         from checkout.services.checkout import CheckoutService
         from django.db import transaction
@@ -471,13 +420,10 @@ def create_order(request):
         # Get payment intent ID
         payment_intent_id = request.data.get("payment_intent_id")
         if not payment_intent_id:
-            logger.error("No payment_intent_id provided")
             return Response(
                 {"error": "Payment intent ID is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        logger.info(f"Payment intent ID: {payment_intent_id}")
 
         # Verify payment with Stripe
         import stripe
@@ -486,21 +432,14 @@ def create_order(request):
         stripe.api_key = settings.STRIPE_SECRET_KEY
 
         try:
-            logger.info("Retrieving payment intent from Stripe...")
             payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-            logger.info(f"Payment intent status: {payment_intent.status}")
-            logger.info(f"Payment intent metadata: {payment_intent.metadata}")
 
             if payment_intent.status != "succeeded":
-                logger.error(f"Payment not completed. Status: {payment_intent.status}")
                 return Response(
                     {"error": "Payment not completed"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         except Exception as e:
-            logger.error(
-                f"Failed to verify payment with Stripe: {str(e)}", exc_info=True
-            )
             return Response(
                 {"error": f"Failed to verify payment: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -510,19 +449,14 @@ def create_order(request):
         user = None
         user_id = payment_intent.metadata.get("user_id")
 
-        logger.info(f"User ID from metadata: {user_id}")
-        logger.info(f"Authenticated user: {request.user.is_authenticated}")
-
         if user_id:
             try:
                 user = User.objects.get(id=user_id)
-                logger.info(f"Found user from metadata: {user.email}")
             except User.DoesNotExist:
-                logger.error(f"User with ID {user_id} not found")
+                pass
 
         if not user and request.user.is_authenticated:
             user = request.user
-            logger.info(f"Using authenticated user: {user.email}")
 
         if not user:
             # Try to get user by email from metadata
@@ -530,24 +464,19 @@ def create_order(request):
             if email:
                 try:
                     user = User.objects.get(email=email)
-                    logger.info(f"Found user by email: {user.email}")
                 except User.DoesNotExist:
-                    logger.error(f"No user found with email: {email}")
+                    pass
 
             if not user:
-                logger.error("No user found for order creation")
                 return Response(
                     {"error": "User account required for order creation"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
         # Get the cart for this user
-        logger.info(f"Looking for cart for user: {user.email}")
-
-        # First try to get cart by user
         cart = Cart.objects.filter(user=user, is_active=True).first()
 
-        # NEW: If no user cart or cart is empty, check for session cart
+        # If no user cart or cart is empty, check for session cart
         if not cart or cart.items.count() == 0:
             session_key = request.session.session_key
             if session_key:
@@ -565,38 +494,20 @@ def create_order(request):
                         # User cart exists but is empty, merge session cart into it
                         cart.merge_with(session_cart)
 
+        # If still no cart, try session cart from metadata
         if not cart or cart.items.count() == 0:
-            return Response(
-                {"error": "Cart is empty"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # If no user cart, try session cart
-        if not cart:
             session_key = (
                 payment_intent.metadata.get("session_key")
                 or request.session.session_key
             )
             if session_key:
-                logger.info(f"Looking for session cart with key: {session_key}")
                 cart = Cart.objects.filter(
                     session_key=session_key, is_active=True
                 ).first()
 
-        if not cart:
-            logger.error(f"No active cart found for user {user.email}")
+        if not cart or cart.items.count() == 0:
             return Response(
                 {"error": "No active cart found"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        logger.info(f"Found cart: {cart.id} with {cart.items.count()} items")
-
-        # Verify cart has items
-        if cart.items.count() == 0:
-            logger.error("Cart is empty")
-            return Response(
-                {"error": "Cart is empty"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -609,93 +520,80 @@ def create_order(request):
             "stripe_payment_intent_id": payment_intent_id,
         }
 
-        logger.info(f"Order data: {order_data}")
-
         # Create the order with user
         with transaction.atomic():
+            # WHY MockRequest EXISTS: CheckoutService.create_order_from_cart expects a Django request object
+            # but our API request doesn't have the same structure, so we create a simple wrapper
+            class MockRequest:
+                def __init__(self, user, session):
+                    self.user = user
+                    self.session = session
+
+            mock_request = MockRequest(user, request.session)
+
+            success, order, error_message = CheckoutService.create_order_from_cart(
+                mock_request, **order_data
+            )
+
+            if not success:
+                return Response(
+                    {"error": error_message or "Failed to create order"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Record the payment
+            payment = Payment.objects.create(
+                order=order,
+                payment_method="stripe",
+                transaction_id=payment_intent_id,
+                amount=order.total,
+                status="completed",
+                payment_data={"payment_intent": payment_intent_id},
+            )
+
+            # EXPLICIT UPDATES - Don't rely on Payment model's save() method
+            # Update order payment status
+            order.payment_status = "paid"
+            order.status = "completed"  # Digital orders are completed immediately
+            order.save(update_fields=["payment_status", "status"])
+
+            for item in order.items.filter(is_digital=True):
+                if not item.download_token:
+                    item.setup_digital_product()
+                    item.save()
+
+            # Process successful payment (sends confirmation emails)
             try:
-                # Create a mock request with the correct user
-                class MockRequest:
-                    def __init__(self, user, session):
-                        self.user = user
-                        self.session = session
-
-                mock_request = MockRequest(user, request.session)
-
-                logger.info("Calling CheckoutService.create_order_from_cart...")
-                success, order, error_message = CheckoutService.create_order_from_cart(
-                    mock_request, **order_data
-                )
-
-                if not success:
-                    logger.error(f"CheckoutService failed: {error_message}")
-                    return Response(
-                        {"error": error_message or "Failed to create order"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                logger.info(f"Order created successfully: {order.order_number}")
-
-                # Record the payment
-                logger.info("Creating payment record...")
-                payment = Payment.objects.create(
-                    order=order,
-                    payment_method="stripe",
-                    transaction_id=payment_intent_id,
-                    amount=order.total,
-                    status="completed",
-                    payment_data={"payment_intent": payment_intent_id},
-                )
-                logger.info(f"Payment created: {payment.id}")
-
-                # The Payment model's save() method will automatically:
-                # 1. Update order payment status to 'paid'
-                # 2. Set up digital downloads via setup_digital_product()
-                # 3. Update order status
-
-                # Process successful payment (sends emails, marks as complete if digital-only)
-                logger.info("Processing successful payment...")
                 CheckoutService.process_successful_payment(order)
-
-                # Verify digital products were set up
-                for item in order.items.filter(is_digital=True):
-                    if not item.download_token:
-                        logger.warning(f"No download token for digital item {item.id}")
-                    else:
-                        logger.info(
-                            f"Download token created for item {item.id}: {item.download_token}"
-                        )
-
-            except Exception as e:
-                logger.error(
-                    f"Error during order creation transaction: {str(e)}", exc_info=True
-                )
-                raise
+            except Exception as email_error:
+                # Don't fail the order if email sending fails
+                print(f"Email sending failed: {email_error}")
 
         # Serialize the order
-        logger.info("Serializing order response...")
         serializer = OrderSerializer(order, context={"request": request})
 
         response_data = {
             "order": serializer.data,
             "message": "Order created successfully",
             "success": True,
+            "order_number": order.order_number,  # Added for frontend
+            "has_digital_items": order.items.filter(
+                is_digital=True
+            ).exists(),  # Added for frontend
         }
 
         # Add verification reminder for new users
         if payment_intent.metadata.get("new_user") == "true":
             response_data["verification_required"] = True
+            response_data["new_account_created"] = True  # More explicit for frontend
+            response_data["email"] = user.email
             response_data["verification_message"] = (
                 "Please check your email to verify your account and access your downloads."
             )
 
-        logger.info(
-            f"Order creation completed successfully for order {order.order_number}"
-        )
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        logger.error(f"Unexpected error in create_order: {str(e)}", exc_info=True)
         return Response(
             {"error": f"Order creation failed: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
