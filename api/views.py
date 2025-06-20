@@ -1,6 +1,7 @@
 # api/views.py
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, filters
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
@@ -136,6 +137,7 @@ def check_email(request):
     return Response({"exists": user_exists, "email": email})
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def create_payment_intent(request):
@@ -221,8 +223,6 @@ def create_payment_intent(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # REMOVED DUPLICATE CART CHECK
-
             # Set Stripe API key
             stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -257,7 +257,7 @@ def create_payment_intent(request):
                 metadata=metadata,
             )
 
-            # RETURN HERE FOR AUTHENTICATED USERS
+            # RETURN HERE FOR AUTHENTICATED USERS - THIS IS THE FIX!
             return Response(
                 {
                     "client_secret": intent.client_secret,
@@ -266,6 +266,8 @@ def create_payment_intent(request):
                     "email": email,
                 }
             )
+
+        # ===== GUEST CHECKOUT SECTION - ONLY RUNS IF NOT AUTHENTICATED =====
 
         # Get cart for anonymous users
         session_key = request.session.session_key

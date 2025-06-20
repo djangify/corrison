@@ -82,6 +82,7 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://corrison.corrisonapi.com",
     "https://corrisonapi.com",
+    "https://corrisonapi.com/auth/login",
     "https://ecommerce.corrisonapi.com",
     "https://65.108.89.200",
     "http://localhost",
@@ -171,7 +172,6 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",  # Keep for admin
     ],
 }
 

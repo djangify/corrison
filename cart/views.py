@@ -7,6 +7,8 @@ from django.db import transaction
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
 from products.models import Product
+from django.views.decorators.csrf import csrf_exempt
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -142,6 +144,7 @@ class CartViewSet(viewsets.ViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"])
+    @csrf_exempt
     def update_item(self, request):
         """Update cart item quantity."""
         cart = self.get_cart_from_request(request)
@@ -164,6 +167,7 @@ class CartViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["post"])
+    @csrf_exempt
     def remove_item(self, request):
         """Remove item from cart."""
         cart = self.get_cart_from_request(request)
@@ -181,6 +185,7 @@ class CartViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["post"])
+    @csrf_exempt
     def clear(self, request):
         """Clear all items from cart."""
         cart = self.get_cart_from_request(request)

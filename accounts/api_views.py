@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.contrib.auth import authenticate, login as django_login
 from .models import Profile
@@ -23,6 +24,7 @@ from .utils import send_verification_email, send_welcome_email
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@csrf_exempt
 def register(request):
     """Register a new user and send verification email"""
     serializer = UserRegistrationSerializer(data=request.data)
@@ -52,6 +54,7 @@ def register(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login(request):
@@ -138,6 +141,7 @@ def logout(request):
         return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def verify_email(request):
@@ -330,6 +334,7 @@ def user_profile(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_password(request):
