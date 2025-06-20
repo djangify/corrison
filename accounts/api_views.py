@@ -284,6 +284,7 @@ def user_profile(request):
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
+            "date_joined": user.date_joined.isoformat() if user.date_joined else None,
             "email_verified": profile.email_verified if profile else False,
             "is_staff": user.is_staff,
             "is_superuser": user.is_superuser,

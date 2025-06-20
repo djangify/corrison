@@ -87,10 +87,11 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "profile",
+            "date_joined",
             "is_staff",
             "is_superuser",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "date_joined"]
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
