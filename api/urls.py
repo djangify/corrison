@@ -191,4 +191,9 @@ urlpatterns = [
         EnrollmentViewSet.as_view({"post": "enroll"}),
         name="course-enroll",
     ),
+    path(
+        "cart/merge/",
+        CartViewSet.as_view({"post": "merge_session_cart"}),
+        name="cart-merge",
+    ),
 ]

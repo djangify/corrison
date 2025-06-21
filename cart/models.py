@@ -70,6 +70,11 @@ class Cart(models.Model):
         return sum(item.quantity for item in self.items.all())
 
     @property
+    def has_physical_items(self):
+        """Always False for digital-only system"""
+        return False
+
+    @property
     def has_digital_items(self):
         """Check if cart has digital items."""
         return self.items.exists()

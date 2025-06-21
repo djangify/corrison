@@ -203,7 +203,9 @@ def send_order_confirmation_email(order, user=None, guest_email=None):
             physical_items.append(item)
 
     # Create order confirmation URL
-    order_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/order-confirmation/{order.order_number}/"
+    # order_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/order-confirmation/{order.order_number}/"
+
+    order_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/orders"
 
     # Text message (fallback)
     message = f"""
@@ -238,7 +240,7 @@ ORDER DETAILS:
 
         if user and user.profile.email_verified:
             message += "\n\nTo access your downloads:"
-            message += f"\n1. Log in to your account at {getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login"
+            message += f"\n1. Log in to your account at {getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/auth/login"
             message += "\n2. Go to 'My Products' or 'Downloads' in your dashboard"
             message += "\n3. Click the download button next to each product"
         else:
@@ -246,7 +248,7 @@ ORDER DETAILS:
             message += (
                 "\n1. Verify your email address (check for our verification email)"
             )
-            message += f"\n2. Log in to your account at {getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login"
+            message += f"\n2. Log in to your account at {getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/auth/login"
             message += "\n3. Go to 'My Products' or 'Downloads' in your dashboard"
             message += "\n4. Click the download button next to each product"
 
@@ -256,7 +258,7 @@ ORDER DETAILS:
 
     message += f"""
 
-Need help? Contact our support team at {getattr(settings, "SUPPORT_EMAIL", "support@corrison.com")}
+Need help? Contact our support team at {getattr(settings, "SUPPORT_EMAIL", "hello@corrison.com")}
 
 Thank you for your purchase!
 
@@ -277,14 +279,14 @@ The {getattr(settings, "SITE_NAME", "Corrison")} Team
                     "site_url": getattr(
                         settings, "SITE_URL", "https://corrisonapi.com"
                     ),
-                    "login_url": f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login",
+                    "login_url": f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/auth/login",
                     "order_url": order_url,
                     "digital_items": digital_items,
                     "physical_items": physical_items,
                     "has_digital_items": len(digital_items) > 0,
                     "email_verified": user.profile.email_verified if user else False,
                     "support_email": getattr(
-                        settings, "SUPPORT_EMAIL", "support@corrison.com"
+                        settings, "SUPPORT_EMAIL", "hello@corrison.com"
                     ),
                 },
             )
@@ -313,7 +315,7 @@ def send_download_ready_email(order_item, user):
 
     subject = f"Your downloads are ready - {order_item.product_name}"
 
-    login_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/login"
+    login_url = f"{getattr(settings, 'SITE_URL', 'https://corrisonapi.com')}/auth/login"
 
     message = f"""
 Hello {user.get_full_name() or user.username},

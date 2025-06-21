@@ -7,8 +7,6 @@ from django.db import transaction
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
 from products.models import Product
-from django.views.decorators.csrf import csrf_exempt
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,80 +22,91 @@ class CartViewSet(viewsets.ViewSet):
     authentication_classes = []
 
     def get_cart_from_request(self, request):
-        """Get or create cart using Django sessions."""
+        """Get or create cart using Django sessions with improved merging."""
         # Ensure session exists
         if not request.session.session_key:
             request.session.create()
 
         session_key = request.session.session_key
+        logger.info(f"Getting cart for session: {session_key}, User: {request.user}")
 
         with transaction.atomic():
-            # For authenticated users, try to get their cart first
+            cart = None
+
+            # For authenticated users
             if request.user.is_authenticated:
-                # Try to get user's active cart
-                cart = (
+                # First, try to get user's active cart
+                user_cart = (
                     Cart.objects.filter(user=request.user, is_active=True)
                     .order_by("-updated_at")
                     .first()
                 )
 
-                if cart:
-                    # Update session_key if needed
-                    if cart.session_key != session_key:
-                        cart.session_key = session_key
-                        cart.save(update_fields=["session_key"])
-                    return cart
-
-            # Try to get cart by session key
-            try:
-                cart = Cart.objects.get(session_key=session_key, is_active=True)
-
-                # If user is authenticated and cart has no user, assign it
-                if request.user.is_authenticated and not cart.user:
-                    cart.user = request.user
-                    cart.save(update_fields=["user"])
-
-            except Cart.DoesNotExist:
-                # Use get_or_create to prevent race conditions
-                cart, created = Cart.objects.get_or_create(
-                    session_key=session_key,
-                    is_active=True,
-                    defaults={
-                        "user": request.user if request.user.is_authenticated else None,
-                        "is_active": True,
-                    },
+                # Also check for session cart
+                session_cart = (
+                    Cart.objects.filter(session_key=session_key, is_active=True)
+                    .exclude(user=request.user)
+                    .first()
                 )
 
-            except Cart.MultipleObjectsReturned:
-                # Multiple carts found - consolidate them
-                carts = Cart.objects.filter(
-                    session_key=session_key, is_active=True
-                ).order_by("-created_at")
-
-                # Prefer cart with items
-                cart_with_items = None
-                for c in carts:
-                    if c.items.exists():
-                        cart_with_items = c
-                        break
-
-                if cart_with_items:
-                    cart = cart_with_items
+                if user_cart and session_cart:
+                    # Merge session cart into user cart
+                    logger.info(
+                        f"Merging session cart {session_cart.id} into user cart {user_cart.id}"
+                    )
+                    user_cart.merge_with(session_cart)
+                    cart = user_cart
+                elif user_cart:
+                    # Just use user cart, update session key
+                    cart = user_cart
+                    if cart.session_key != session_key:
+                        cart.session_key = session_key
+                        cart.save(update_fields=["session_key", "updated_at"])
+                elif session_cart:
+                    # Assign session cart to user
+                    logger.info(
+                        f"Assigning session cart {session_cart.id} to user {request.user}"
+                    )
+                    session_cart.user = request.user
+                    session_cart.save(update_fields=["user", "updated_at"])
+                    cart = session_cart
                 else:
-                    cart = carts.first()
+                    # Create new cart for user
+                    cart = Cart.objects.create(
+                        user=request.user, session_key=session_key, is_active=True
+                    )
+                    logger.info(f"Created new cart {cart.id} for user {request.user}")
 
-                # Deactivate all other carts
-                carts.exclude(id=cart.id).update(is_active=False)
+            else:
+                # For anonymous users, get or create session cart
+                try:
+                    cart = Cart.objects.get(
+                        session_key=session_key, is_active=True, user__isnull=True
+                    )
+                except Cart.DoesNotExist:
+                    cart = Cart.objects.create(session_key=session_key, is_active=True)
+                    logger.info(f"Created new session cart {cart.id}")
+                except Cart.MultipleObjectsReturned:
+                    # Clean up duplicate session carts
+                    carts = Cart.objects.filter(
+                        session_key=session_key, is_active=True, user__isnull=True
+                    ).order_by("-updated_at")
 
-            # If user is authenticated, check for other carts to merge
-            if request.user.is_authenticated and cart.user == request.user:
-                other_carts = Cart.objects.filter(
-                    user=request.user, is_active=True
-                ).exclude(id=cart.id)
+                    # Keep the most recent one with items
+                    cart = None
+                    for c in carts:
+                        if c.items.exists() and not cart:
+                            cart = c
+                        else:
+                            c.is_active = False
+                            c.save()
 
-                for other_cart in other_carts:
-                    cart.merge_with(other_cart)
+                    if not cart:
+                        cart = carts.first()
+                        cart.is_active = True
+                        cart.save()
 
+            logger.info(f"Returning cart {cart.id} with {cart.items.count()} items")
             return cart
 
     def list(self, request):
@@ -139,12 +148,14 @@ class CartViewSet(viewsets.ViewSet):
         cart_item.quantity += quantity
         cart_item.save()
 
+        # Update cart timestamp
+        cart.save(update_fields=["updated_at"])
+
         # Return updated cart
         serializer = CartSerializer(cart)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"])
-    @csrf_exempt
     def update_item(self, request):
         """Update cart item quantity."""
         cart = self.get_cart_from_request(request)
@@ -159,6 +170,9 @@ class CartViewSet(viewsets.ViewSet):
             else:
                 cart_item.delete()
 
+            # Update cart timestamp
+            cart.save(update_fields=["updated_at"])
+
             serializer = CartSerializer(cart)
             return Response(serializer.data)
         except CartItem.DoesNotExist:
@@ -167,7 +181,6 @@ class CartViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["post"])
-    @csrf_exempt
     def remove_item(self, request):
         """Remove item from cart."""
         cart = self.get_cart_from_request(request)
@@ -177,6 +190,9 @@ class CartViewSet(viewsets.ViewSet):
             cart_item = cart.items.get(id=item_id)
             cart_item.delete()
 
+            # Update cart timestamp
+            cart.save(update_fields=["updated_at"])
+
             serializer = CartSerializer(cart)
             return Response(serializer.data)
         except CartItem.DoesNotExist:
@@ -185,12 +201,28 @@ class CartViewSet(viewsets.ViewSet):
             )
 
     @action(detail=False, methods=["post"])
-    @csrf_exempt
     def clear(self, request):
         """Clear all items from cart."""
         cart = self.get_cart_from_request(request)
         cart.clear()
 
+        # Update cart timestamp
+        cart.save(update_fields=["updated_at"])
+
+        serializer = CartSerializer(cart)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def merge_session_cart(self, request):
+        """Explicitly merge session cart with user cart after login."""
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # This will automatically handle merging
+        cart = self.get_cart_from_request(request)
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
@@ -238,6 +270,9 @@ class CartItemViewSet(viewsets.ModelViewSet):
         cart_item.quantity += quantity
         cart_item.save()
 
+        # Update cart timestamp
+        cart.save(update_fields=["updated_at"])
+
         serializer = self.get_serializer(cart_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -249,14 +284,28 @@ class CartItemViewSet(viewsets.ModelViewSet):
         if quantity > 0:
             cart_item.quantity = quantity
             cart_item.save()
+
+            # Update cart timestamp
+            cart_item.cart.save(update_fields=["updated_at"])
+
             serializer = self.get_serializer(cart_item)
             return Response(serializer.data)
         else:
+            cart = cart_item.cart
             cart_item.delete()
+
+            # Update cart timestamp
+            cart.save(update_fields=["updated_at"])
+
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def destroy(self, request, *args, **kwargs):
         """Remove item from cart."""
         cart_item = self.get_object()
+        cart = cart_item.cart
         cart_item.delete()
+
+        # Update cart timestamp
+        cart.save(update_fields=["updated_at"])
+
         return Response(status=status.HTTP_204_NO_CONTENT)
