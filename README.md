@@ -97,7 +97,7 @@ const cart = await fetchCorrisonData('cart/');
 ---
 
 ### Backend Structure
-```
+
 frontend/
 ├── src/
 │   ├── components/              # Reusable components
@@ -132,6 +132,7 @@ frontend/
 ```
 
 ---
+```
 backend/
 ├── corrison/             # Main Django project
 │   ├── settings/         # Environment-specific settings
